@@ -1,0 +1,68 @@
+{
+  "name": "@htmz/htmz",
+  "version": "1.0.2",
+  "description": "Transform any JSON API into dynamic HTML with zero JavaScript coding. Declarative attributes for AJAX, templating, and DOM updates.",
+  "main": "dist/htmz.js",
+  "browser": "dist/htmz.min.js",
+  "bin": {
+    "htmz": "./bin/htmz"
+  },
+  "author": "William Theesfeld <william@theesfeld.net>",
+  "license": "GPL-3.0-or-later",
+  "homepage": "https://github.com/willtheesfeld/htmz#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/willtheesfeld/htmz.git"
+  },
+  "bugs": {
+    "url": "https://github.com/willtheesfeld/htmz/issues"
+  },
+  "keywords": [
+    "json",
+    "ajax",
+    "html",
+    "dom",
+    "templates",
+    "api",
+    "frontend",
+    "performance",
+    "reactive",
+    "declarative",
+    "rest-api",
+    "spa",
+    "dashboard",
+    "zero-javascript",
+    "htmx-like",
+    "web-components"
+  ],
+  "files": [
+    "dist/",
+    "proxy/server.js",
+    "proxy/package.json",
+    "bin/",
+    "templates/",
+    "examples/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "scripts": {
+    "build": "make build",
+    "test": "make test",
+    "clean": "make clean",
+    "dev": "make dev",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {},
+  "peerDependencies": {},
+  "publishConfig": {
+    "access": "public"
+  }
+}

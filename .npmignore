@@ -1,0 +1,30 @@
+# Development files
+.claude/
+test/
+.env
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build artifacts
+src/
+
+# Proxy node_modules (will be installed on user's machine)
+proxy/node_modules
+proxy/package-lock.json
+
+# Git and IDE files
+.git/
+.gitignore
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Documentation build files
+docs/.build/

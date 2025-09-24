@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>htmz Environment Variables Demo</title>
+
+    <!-- Method 1: Meta tags for environment variables -->
+    <meta name="htmz-env-API_BASE" content="https://api.github.com">
+    <meta name="htmz-env-DEFAULT_USER" content="octocat">
+
+    <script src="htmz.js"></script>
+    <style>
+        body {
+            font-family: system-ui;
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 1rem;
+        }
+        .example {
+            border: 1px solid #ddd;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border-radius: 8px;
+        }
+        .user-card {
+            border: 1px solid #eee;
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+        }
+        .user-card img { border-radius: 50%; margin-right: 1rem; }
+        .env-config {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+        }
+        .env-var {
+            font-family: monospace;
+            background: #e9ecef;
+            padding: 0.25rem 0.5rem;
+            border-radius: 3px;
+        }
+        code {
+            background: #f8f9fa;
+            padding: 0.25rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔐 htmz Environment Variables Demo</h1>
+    <p>This demo shows how to use environment variables and secrets in htmz for secure API integration.</p>
+
+    <div class="env-config">
+        <h3>Current Environment Variables:</h3>
+        <div id="env-list"></div>
+
+        <h4>Add New Environment Variable:</h4>
+        <input id="env-key" placeholder="Variable name (e.g., API_KEY)">
+        <input id="env-value" placeholder="Variable value">
+        <button onclick="addEnvVar()">Add Variable</button>
+        <button onclick="clearAllVars()">Clear All</button>
+    </div>
+
+    <div class="example">
+        <h3>Example 1: Using Environment Variables in URLs</h3>
+        <p>This button uses <code>{{env.API_BASE}}</code> and <code>{{env.DEFAULT_USER}}</code> from environment:</p>
+
+        <button hz-get="{{env.API_BASE}}/users/{{env.DEFAULT_USER}}"
+                hz-template="#user-template"
+                hz-target="#result1">
+            Get Default User from {{env.API_BASE}}
+        </button>
+
+        <div id="result1"></div>
+    </div>
+
+    <div class="example">
+        <h3>Example 2: Environment Variables in Headers</h3>
+        <p>Add your API key as an environment variable:</p>
+
+        <div style="margin: 1rem 0;">
+            <input id="api-key" placeholder="Enter your API key" style="width: 300px;">
+            <button onclick="setApiKey()">Set API_KEY</button>
+        </div>
+
+        <button hz-get="https://api.github.com/user"
+                hz-headers='{"Authorization": "Bearer {{env.API_KEY}}"}'
+                hz-template="#auth-user-template"
+                hz-target="#result2">
+            Get Authenticated User (Requires API_KEY)
+        </button>
+
+        <div id="result2"></div>
+    </div>
+
+    <div class="example">
+        <h3>Example 3: Multiple API Endpoints</h3>
+        <p>Configure multiple API endpoints and switch between them:</p>
+
+        <button onclick="setApiEndpoint('github')">Use GitHub API</button>
+        <button onclick="setApiEndpoint('placeholder')">Use JSONPlaceholder</button>
+
+        <div style="margin: 1rem 0;">
+            Current API: <span class="env-var" id="current-api">{{env.CURRENT_API}}</span>
+        </div>
+
+        <button hz-get="{{env.CURRENT_API}}/users/1"
+                hz-template="#flexible-user-template"
+                hz-target="#result3">
+            Get User from Current API
+        </button>
+
+        <div id="result3"></div>
+    </div>
+
+    <div class="example">
+        <h3>Example 4: Environment-Specific Configuration</h3>
+        <p>Different settings for development vs production:</p>
+
+        <button onclick="setEnvironment('development')">Development Mode</button>
+        <button onclick="setEnvironment('production')">Production Mode</button>
+
+        <div style="margin: 1rem 0;">
+            Environment: <span class="env-var" id="current-env">{{env.NODE_ENV}}</span><br>
+            Debug: <span class="env-var" id="debug-mode">{{env.DEBUG}}</span>
+        </div>
+
+        <button hz-get="{{env.API_BASE}}/users/{{env.DEFAULT_USER}}"
+                hz-template="#env-aware-template"
+                hz-target="#result4">
+            Load with Environment Settings
+        </button>
+
+        <div id="result4"></div>
+    </div>
+
+    <!-- Templates -->
+    <template id="user-template">
+        <div class="user-card">
+            <img src="{{avatar_url}}" width="60" alt="{{name}}">
+            <div>
+                <h3>{{name}} (@{{login}})</h3>
+                <p>{{bio}}</p>
+                <p>📍 {{location}} • 👥 {{followers}} followers</p>
+            </div>
+        </div>
+    </template>
+
+    <template id="auth-user-template">
+        {{?login}}
+        <div class="user-card">
+            <img src="{{avatar_url}}" width="60" alt="{{name}}">
+            <div>
+                <h3>✅ Authenticated as {{name}}</h3>
+                <p>@{{login}} • {{email}}</p>
+                <p>{{bio}}</p>
+                <p>Private repos: {{total_private_repos}}</p>
+            </div>
+        </div>
+        {{/?}}
+        {{?message}}
+        <div class="user-card">
+            <h3>❌ Authentication Failed</h3>
+            <p>{{message}}</p>
+            <p>Please check your API_KEY environment variable.</p>
+        </div>
+        {{/?}}
+    </template>
+
+    <template id="flexible-user-template">
+        <div class="user-card">
+            {{?avatar_url}}
+            <img src="{{avatar_url}}" width="60" alt="{{name}}">
+            {{/?}}
+
+            <div>
+                <h3>{{name}}{{?username}} (@{{username}}){{/?}}{{?login}} (@{{login}}){{/?}}</h3>
+
+                {{?bio}}<p>{{bio}}</p>{{/?}}
+                {{?email}}<p>📧 {{email}}</p>{{/?}}
+                {{?website}}<p>🌐 {{website}}</p>{{/?}}
+                {{?phone}}<p>📞 {{phone}}</p>{{/?}}
+
+                {{?followers}}<p>👥 {{followers}} followers</p>{{/?}}
+                {{?company}}<p>🏢 {{company}}</p>{{/?}}
+            </div>
+        </div>
+    </template>
+
+    <template id="env-aware-template">
+        <div class="user-card">
+            <img src="{{avatar_url}}" width="60" alt="{{name}}">
+            <div>
+                <h3>{{name}} (@{{login}})</h3>
+                <p>{{bio}}</p>
+
+                <!-- Debug info only shown in development -->
+                {{?debug}}
+                <div style="background: #fff3cd; padding: 0.5rem; border-radius: 4px; margin-top: 0.5rem;">
+                    <small><strong>Debug Info:</strong><br>
+                    API Response received at {{timestamp}}<br>
+                    Environment: {{env}}<br>
+                    User ID: {{id}}</small>
+                </div>
+                {{/?}}
+            </div>
+        </div>
+    </template>
+
+    <script>
+        // Initialize htmz with some default environment variables
+        htmz.configure({
+            env: {
+                API_BASE: 'https://api.github.com',
+                DEFAULT_USER: 'octocat',
+                NODE_ENV: 'development',
+                DEBUG: 'true'
+            }
+        });
+
+        // Helper functions
+        function addEnvVar() {
+            const key = document.getElementById('env-key').value.trim();
+            const value = document.getElementById('env-value').value.trim();
+
+            if (key && value) {
+                htmz.env.set(key, value);
+                document.getElementById('env-key').value = '';
+                document.getElementById('env-value').value = '';
+                updateEnvDisplay();
+
+                // Re-process all htmz elements to pick up new env vars
+                htmz.process();
+            }
+        }
+
+        function clearAllVars() {
+            htmz.env.clear();
+            updateEnvDisplay();
+            htmz.process();
+        }
+
+        function setApiKey() {
+            const apiKey = document.getElementById('api-key').value.trim();
+            if (apiKey) {
+                htmz.env.set('API_KEY', apiKey);
+                document.getElementById('api-key').value = '';
+                alert('API_KEY set! (Check browser console for value)');
+                console.log('API_KEY set to:', apiKey);
+            }
+        }
+
+        function setApiEndpoint(type) {
+            if (type === 'github') {
+                htmz.env.set('CURRENT_API', 'https://api.github.com');
+            } else if (type === 'placeholder') {
+                htmz.env.set('CURRENT_API', 'https://jsonplaceholder.typicode.com');
+            }
+
+            document.getElementById('current-api').textContent = htmz.env.get('CURRENT_API');
+            htmz.process();
+        }
+
+        function setEnvironment(env) {
+            htmz.env.set('NODE_ENV', env);
+            htmz.env.set('DEBUG', env === 'development' ? 'true' : 'false');
+
+            document.getElementById('current-env').textContent = env;
+            document.getElementById('debug-mode').textContent = htmz.env.get('DEBUG');
+
+            htmz.process();
+        }
+
+        function updateEnvDisplay() {
+            const envList = document.getElementById('env-list');
+            const vars = htmz.env.list();
+
+            if (vars.length === 0) {
+                envList.innerHTML = '<em>No environment variables set</em>';
+                return;
+            }
+
+            envList.innerHTML = vars.map(key => {
+                const value = htmz.env.get(key);
+                const displayValue = key.includes('KEY') || key.includes('SECRET')
+                    ? '*'.repeat(Math.min(value.length, 8))
+                    : value;
+
+                return `<div>
+                    <span class="env-var">${key}</span> =
+                    <span class="env-var">${displayValue}</span>
+                    <button onclick="htmz.env.remove('${key}'); updateEnvDisplay(); htmz.process();" style="margin-left: 0.5rem; font-size: 0.8em;">×</button>
+                </div>`;
+            }).join('');
+        }
+
+        // Initialize display
+        updateEnvDisplay();
+
+        // Demo: Show how environment variables work
+        console.log('htmz Environment Variables Demo');
+        console.log('Available variables:', htmz.env.list());
+        console.log('API_BASE:', htmz.env.get('API_BASE'));
+        console.log('DEFAULT_USER:', htmz.env.get('DEFAULT_USER'));
+
+        // Show current environment in UI
+        document.getElementById('current-api').textContent = htmz.env.get('API_BASE');
+        document.getElementById('current-env').textContent = htmz.env.get('NODE_ENV');
+        document.getElementById('debug-mode').textContent = htmz.env.get('DEBUG');
+    </script>
+</body>
+</html>

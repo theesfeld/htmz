@@ -1,0 +1,399 @@
+#!/usr/bin/env node
+
+/*
+ * htmz CLI - Command-line interface for htmz
+ * Copyright (C) 2025 William Theesfeld <william@theesfeld.net>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+
+"use strict";
+
+const { spawn } = require('child_process');
+const path = require('path');
+const fs = require('fs');
+
+const args = process.argv.slice(2);
+const command = args[0];
+
+function showHelp() {
+    console.log(`
+htmz - JSON-powered HTML library
+
+Usage:
+  htmz <command> [options]
+
+Commands:
+  dev               Start development server (web + proxy)
+  proxy [options]   Start the htmz proxy server only
+  serve [options]   Start web server only
+  init              Initialize htmz in current directory
+  help              Show this help message
+
+Development Options:
+  --port <number>   Web server port (default: 8000)
+  --proxy-port <n>  Proxy server port (default: 3001)
+  --no-open         Don't open browser automatically
+  --env <file>      Environment file path (default: .env)
+
+Examples:
+  htmz dev                      # Start everything (recommended!)
+  htmz dev --port 3000          # Custom web server port
+  htmz proxy                    # Start proxy server only
+  htmz serve                    # Start web server only
+  htmz init                     # Set up htmz in existing project
+
+Security:
+  The proxy server keeps your API keys secure by:
+  • Reading .env files server-side only
+  • Never exposing secrets to the browser
+  • Using CORS to restrict access to localhost
+  • Resolving {{env.VAR}} placeholders at runtime
+
+Documentation: https://github.com/willtheesfeld/htmz
+`);
+}
+
+function startProxy() {
+    const proxyPath = path.join(__dirname, '..', 'proxy', 'server.js');
+
+    if (!fs.existsSync(proxyPath)) {
+        console.error('Error: htmz proxy server not found');
+        console.error('Make sure you have installed htmz completely');
+        process.exit(1);
+    }
+
+    // Parse proxy-specific arguments
+    const proxyArgs = [];
+    let i = 1; // Skip 'proxy' command
+
+    while (i < args.length) {
+        const arg = args[i];
+
+        if (arg === '--port' && i + 1 < args.length) {
+            const port = parseInt(args[i + 1]);
+            if (isNaN(port) || port < 1 || port > 65535) {
+                console.error(`Error: Invalid port number '${args[i + 1]}'`);
+                process.exit(1);
+            }
+            process.env.PORT = port.toString();
+            i += 2;
+        } else if (arg === '--env' && i + 1 < args.length) {
+            const envFile = args[i + 1];
+            if (!fs.existsSync(envFile)) {
+                console.error(`Error: Environment file '${envFile}' not found`);
+                process.exit(1);
+            }
+            process.env.HTMZ_ENV = envFile;
+            i += 2;
+        } else if (arg === '--dev') {
+            proxyArgs.push('--dev');
+            i++;
+        } else {
+            console.error(`Error: Unknown proxy option '${arg}'`);
+            console.error('Run "htmz help" for usage information');
+            process.exit(1);
+        }
+    }
+
+    // Check if Node.js dependencies are installed
+    const proxyPkg = path.join(__dirname, '..', 'proxy', 'package.json');
+    const nodeModules = path.join(__dirname, '..', 'proxy', 'node_modules');
+
+    if (!fs.existsSync(nodeModules)) {
+        console.log('Installing proxy server dependencies...');
+        console.log('This only needs to be done once.\n');
+
+        const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+        const install = spawn(npm, ['install'], {
+            cwd: path.dirname(proxyPath),
+            stdio: 'inherit'
+        });
+
+        install.on('close', (code) => {
+            if (code !== 0) {
+                console.error('Failed to install dependencies');
+                process.exit(1);
+            }
+
+            // Start the server after successful install
+            startProxyServer(proxyPath, proxyArgs);
+        });
+    } else {
+        startProxyServer(proxyPath, proxyArgs);
+    }
+}
+
+function startProxyServer(proxyPath, proxyArgs) {
+    const server = spawn('node', [proxyPath, ...proxyArgs], {
+        stdio: 'inherit'
+    });
+
+    server.on('close', (code) => {
+        if (code !== 0) {
+            console.error(`Proxy server exited with code ${code}`);
+            process.exit(code);
+        }
+    });
+
+    // Handle Ctrl+C gracefully
+    process.on('SIGINT', () => {
+        server.kill('SIGINT');
+    });
+
+    return server;
+}
+
+function startWebServer(port = 8000) {
+    console.log(`Starting web server on port ${port}...`);
+
+    const python = spawn('python3', ['-m', 'http.server', port.toString()], {
+        stdio: 'inherit'
+    });
+
+    python.on('close', (code) => {
+        if (code !== 0) {
+            console.error(`Web server exited with code ${code}`);
+            process.exit(code);
+        }
+    });
+
+    return python;
+}
+
+function startDevServers() {
+    const portIndex = args.indexOf('--port');
+    const webPort = portIndex !== -1 && args[portIndex + 1] ? parseInt(args[portIndex + 1]) : 8000;
+
+    const proxyPortIndex = args.indexOf('--proxy-port');
+    const proxyPort = proxyPortIndex !== -1 && args[proxyPortIndex + 1] ? parseInt(args[proxyPortIndex + 1]) : 3001;
+
+    const noOpen = args.includes('--no-open');
+
+    // Set proxy port in environment
+    process.env.PORT = proxyPort.toString();
+
+    console.log('🚀 Starting htmz development server...\n');
+
+    // Start proxy server first
+    const proxyPath = path.join(__dirname, '..', 'proxy', 'server.js');
+    if (!fs.existsSync(proxyPath)) {
+        console.error('Error: htmz proxy server not found');
+        process.exit(1);
+    }
+
+    // Install dependencies if needed
+    const nodeModules = path.join(path.dirname(proxyPath), 'node_modules');
+    if (!fs.existsSync(nodeModules)) {
+        console.log('Installing proxy dependencies...\n');
+        const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+        const install = spawn(npm, ['install'], {
+            cwd: path.dirname(proxyPath),
+            stdio: 'inherit'
+        });
+
+        install.on('close', (code) => {
+            if (code !== 0) {
+                console.error('Failed to install dependencies');
+                process.exit(1);
+            }
+            startBothServers();
+        });
+    } else {
+        startBothServers();
+    }
+
+    function startBothServers() {
+        // Start proxy server
+        const proxyServer = spawn('node', [proxyPath, '--dev'], {
+            stdio: ['inherit', 'pipe', 'pipe']
+        });
+
+        let proxyStarted = false;
+        proxyServer.stdout.on('data', (data) => {
+            process.stdout.write(data);
+            if (data.toString().includes('htmz-proxy server started') && !proxyStarted) {
+                proxyStarted = true;
+                setTimeout(() => {
+                    // Start web server after proxy is ready
+                    console.log(`Starting web server on http://localhost:${webPort}...\n`);
+                    const webServer = startWebServer(webPort);
+
+                    // Open browser after a short delay
+                    if (!noOpen) {
+                        setTimeout(() => {
+                            const open = require('child_process').spawn(
+                                process.platform === 'darwin' ? 'open' :
+                                process.platform === 'win32' ? 'start' : 'xdg-open',
+                                [`http://localhost:${webPort}`],
+                                { stdio: 'ignore' }
+                            );
+                        }, 1500);
+                    }
+
+                    // Handle Ctrl+C for both servers
+                    process.on('SIGINT', () => {
+                        console.log('\n👋 Shutting down development servers...');
+                        proxyServer.kill('SIGINT');
+                        webServer.kill('SIGINT');
+                        process.exit(0);
+                    });
+                }, 500);
+            }
+        });
+
+        proxyServer.stderr.on('data', (data) => {
+            process.stderr.write(data);
+        });
+    }
+}
+
+function initProject() {
+    console.log('🎯 Initializing htmz project...\n');
+
+    // Create .env.example if it doesn't exist
+    const envExample = `.env.example`;
+    if (!fs.existsSync(envExample)) {
+        const envContent = `# htmz Environment Variables
+# Copy this file to .env and add your actual values
+
+# API Configuration
+GITHUB_API=https://api.github.com
+GITHUB_TOKEN=your_github_token_here
+DEFAULT_USER=octocat
+
+# Other APIs
+API_BASE=https://your-api.com/api/v1
+API_KEY=your_api_key_here
+
+# Configuration
+NODE_ENV=development
+DEBUG=true`;
+
+        fs.writeFileSync(envExample, envContent);
+        console.log('✅ Created .env.example');
+    }
+
+    // Create basic package.json if it doesn't exist
+    if (!fs.existsSync('package.json')) {
+        const packageJson = {
+            name: path.basename(process.cwd()),
+            version: '1.0.0',
+            scripts: {
+                dev: 'htmz dev',
+                start: 'htmz serve',
+                proxy: 'htmz proxy'
+            },
+            dependencies: {
+                htmz: '^1.0.0'
+            }
+        };
+
+        fs.writeFileSync('package.json', JSON.stringify(packageJson, null, 2));
+        console.log('✅ Created package.json');
+    }
+
+    // Create basic index.html if it doesn't exist
+    if (!fs.existsSync('index.html')) {
+        const indexHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>htmz Project</title>
+    <script src="https://unpkg.com/@htmz/htmz@latest/dist/htmz.min.js"></script>
+</head>
+<body>
+    <h1>🚀 htmz Project</h1>
+    <p>Your htmz project is ready!</p>
+
+    <!-- Example: Public API (no proxy needed) -->
+    <button hz-get="https://api.github.com/users/octocat"
+            hz-template="#user-template"
+            hz-target="#result">
+        Load Public Data
+    </button>
+
+    <!-- Example: With environment variables (requires proxy) -->
+    <button hz-get="{{env.GITHUB_API}}/users/{{env.DEFAULT_USER}}"
+            hz-headers='{"User-Agent": "htmz-app"}'
+            hz-template="#user-template"
+            hz-target="#result">
+        Load with Environment Variables
+    </button>
+
+    <div id="result"></div>
+
+    <template id="user-template">
+        <div style="border: 1px solid #ddd; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+            <h3>{{name}} (@{{login}})</h3>
+            <p>{{bio}}</p>
+            <p>📍 {{location}} • 👥 {{followers}} followers</p>
+        </div>
+    </template>
+</body>
+</html>`;
+
+        fs.writeFileSync('index.html', indexHtml);
+        console.log('✅ Created index.html');
+    }
+
+    console.log('\n🎉 Project initialized successfully!');
+    console.log('\nNext steps:');
+    console.log('1. Copy .env.example to .env and add your API keys');
+    console.log('2. Run: htmz dev');
+    console.log('3. Open http://localhost:8000 in your browser\n');
+}
+
+function startWebOnly() {
+    const portIndex = args.indexOf('--port');
+    const webPort = portIndex !== -1 && args[portIndex + 1] ? parseInt(args[portIndex + 1]) : 8000;
+
+    console.log('🌐 Starting web server only...');
+    const webServer = startWebServer(webPort);
+
+    process.on('SIGINT', () => {
+        console.log('\n👋 Web server stopped');
+        webServer.kill('SIGINT');
+        process.exit(0);
+    });
+}
+
+// Main CLI logic
+switch (command) {
+    case 'dev':
+        startDevServers();
+        break;
+
+    case 'proxy':
+        startProxy();
+        break;
+
+    case 'serve':
+        startWebOnly();
+        break;
+
+    case 'init':
+        initProject();
+        break;
+
+    case 'help':
+    case '--help':
+    case '-h':
+        showHelp();
+        break;
+
+    case undefined:
+        console.error('Error: No command specified');
+        console.error('Run "htmz help" for usage information');
+        process.exit(1);
+        break;
+
+    default:
+        console.error(`Error: Unknown command '${command}'`);
+        console.error('Run "htmz help" for usage information');
+        process.exit(1);
+}

@@ -1,0 +1,31 @@
+{
+  "name": "@htmz/create-htmz-app",
+  "version": "1.0.2",
+  "description": "Create htmz apps with zero configuration",
+  "main": "index.js",
+  "bin": {
+    "create-htmz-app": "./index.js"
+  },
+  "author": "William Theesfeld <william@theesfeld.net>",
+  "license": "GPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/willtheesfeld/htmz.git",
+    "directory": "create-htmz-app"
+  },
+  "keywords": [
+    "htmz",
+    "json",
+    "html",
+    "api",
+    "template",
+    "create-app",
+    "boilerplate"
+  ],
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>htmz Proxy Server Test</title>
+    <script src="htmz.js"></script>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 1rem;
+            line-height: 1.6;
+        }
+
+        .example {
+            border: 1px solid #ddd;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+
+        .user-card {
+            border: 1px solid #e1e5e9;
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+            background: white;
+        }
+
+        .user-card img {
+            border-radius: 50%;
+            margin-right: 1rem;
+            float: left;
+        }
+
+        .user-card h3 {
+            margin: 0 0 0.5rem 0;
+        }
+
+        .user-card p {
+            margin: 0.25rem 0;
+            color: #666;
+        }
+
+        .user-card::after {
+            content: '';
+            display: table;
+            clear: both;
+        }
+
+        code {
+            background: #f5f5f5;
+            padding: 0.25rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+
+        .status {
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+        }
+
+        .status.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .proxy-info {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            color: #0c4a6e;
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔐 htmz Proxy Server Test</h1>
+
+    <div class="proxy-info">
+        <h3>🚀 Start the Proxy Server</h3>
+        <p>This page uses environment variables that require the htmz proxy server:</p>
+        <p><strong>Step 1:</strong> <code>npx htmz proxy</code></p>
+        <p><strong>Step 2:</strong> Refresh this page</p>
+        <p><strong>Step 3:</strong> Click the buttons below</p>
+    </div>
+
+    <div id="proxy-status"></div>
+
+    <div class="example">
+        <h3>Example 1: GitHub API with Environment Variables</h3>
+        <p>Uses <code>{{env.GITHUB_API}}/users/{{env.DEFAULT_USER}}</code> from your .env file:</p>
+
+        <button hz-get="{{env.GITHUB_API}}/users/{{env.DEFAULT_USER}}"
+                hz-template="#user-template"
+                hz-target="#github-result">
+            Load GitHub User ({{env.DEFAULT_USER}})
+        </button>
+
+        <div id="github-result"></div>
+    </div>
+
+    <div class="example">
+        <h3>Example 2: API with Authorization Header</h3>
+        <p>Uses <code>Authorization: Bearer {{env.GITHUB_TOKEN}}</code> header:</p>
+
+        <button hz-get="{{env.GITHUB_API}}/user"
+                hz-headers='{"Authorization": "Bearer {{env.GITHUB_TOKEN}}"}'
+                hz-template="#auth-user-template"
+                hz-target="#auth-result">
+            Load Authenticated User
+        </button>
+
+        <div id="auth-result"></div>
+    </div>
+
+    <div class="example">
+        <h3>Example 3: Multiple Environment Variables</h3>
+        <p>Uses <code>{{env.API_BASE}}</code>, <code>{{env.DEFAULT_USER}}</code>, and <code>{{env.USER_AGENT}}</code>:</p>
+
+        <button hz-get="{{env.API_BASE}}/users/{{env.DEFAULT_USER}}"
+                hz-headers='{"User-Agent": "{{env.USER_AGENT}}"}'
+                hz-template="#detailed-user-template"
+                hz-target="#detailed-result">
+            Load with Custom Headers
+        </button>
+
+        <div id="detailed-result"></div>
+    </div>
+
+    <div class="example">
+        <h3>Example 4: POST Request with Environment Variables</h3>
+        <p>POST to <code>{{env.API_BASE}}/test</code> (will fail gracefully):</p>
+
+        <button hz-post="{{env.API_BASE}}/test"
+                hz-headers='{"Authorization": "Bearer {{env.GITHUB_TOKEN}}", "Content-Type": "application/json"}'
+                hz-template="#post-result-template"
+                hz-target="#post-result">
+            Test POST Request
+        </button>
+
+        <div id="post-result"></div>
+    </div>
+
+    <!-- Templates -->
+    <template id="user-template">
+        <div class="user-card">
+            <img src="{{avatar_url}}" width="60" alt="{{name}}">
+            <div>
+                <h3>{{name}} (@{{login}})</h3>
+                <p>{{bio}}</p>
+                <p>📍 {{location}} • 👥 {{followers}} followers • 📦 {{public_repos}} repos</p>
+                <a href="{{html_url}}" target="_blank">View Profile →</a>
+            </div>
+        </div>
+    </template>
+
+    <template id="auth-user-template">
+        <div class="user-card">
+            {{?login}}
+            <img src="{{avatar_url}}" width="60" alt="{{name}}">
+            <div>
+                <h3>✅ Authenticated as {{name}}</h3>
+                <p>@{{login}} • {{email}}</p>
+                <p>{{bio}}</p>
+                <p>🔒 Private repos: {{total_private_repos}} • 💾 Disk usage: {{disk_usage}} KB</p>
+            </div>
+            {{/?}}
+            {{^login}}
+            <div>
+                <h3>❌ Authentication Failed</h3>
+                <p>Check your GITHUB_TOKEN in the .env file</p>
+            </div>
+            {{/login}}
+        </div>
+    </template>
+
+    <template id="detailed-user-template">
+        <div class="user-card">
+            <img src="{{avatar_url}}" width="60" alt="{{name}}">
+            <div>
+                <h3>{{name}} (@{{login}})</h3>
+                <p>{{bio}}</p>
+                <p>📍 {{location}} • 🏢 {{company}}</p>
+                <p>👥 {{followers}} followers • 👑 {{following}} following</p>
+                <p>📦 {{public_repos}} public repos • 📚 {{public_gists}} gists</p>
+                <p>📅 Joined {{created_at}}</p>
+            </div>
+        </div>
+    </template>
+
+    <template id="post-result-template">
+        <div class="status {{success ? 'success' : 'error'}}">
+            {{?success}}
+            <h4>✅ POST Request Successful</h4>
+            <p>Response: {{message}}</p>
+            {{/?}}
+            {{^success}}
+            <h4>⚠️ POST Request Failed (Expected)</h4>
+            <p>This is normal - the endpoint doesn't exist, but the proxy handled the request correctly.</p>
+            <p>Error: {{error}}</p>
+            {{/success}}
+        </div>
+    </template>
+
+    <script>
+        // Check proxy server status
+        function checkProxyStatus() {
+            fetch('http://localhost:3001/health')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('proxy-status').innerHTML = `
+                        <div class="status success">
+                            <h4>✅ Proxy Server Running</h4>
+                            <p><strong>Service:</strong> ${data.service}</p>
+                            <p><strong>Environment Variables:</strong> ${data.envVarsLoaded} loaded</p>
+                        </div>
+                    `;
+                })
+                .catch(error => {
+                    document.getElementById('proxy-status').innerHTML = `
+                        <div class="status error">
+                            <h4>❌ Proxy Server Not Running</h4>
+                            <p>Start it with: <code>npx htmz proxy</code></p>
+                            <p>Error: ${error.message}</p>
+                        </div>
+                    `;
+                });
+        }
+
+        // Check proxy status when page loads
+        checkProxyStatus();
+
+        // Refresh proxy status every 10 seconds
+        setInterval(checkProxyStatus, 10000);
+
+        // Show htmz configuration
+        console.log('htmz proxy configuration:', htmz.proxy.getConfig());
+    </script>
+</body>
+</html>

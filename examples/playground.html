@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>htmz Interactive Playground</title>
+    <script src="htmz.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0; padding: 0; background: #f5f5f5;
+        }
+        .playground {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            height: 100vh;
+            gap: 1px;
+            background: #ddd;
+        }
+        .panel { background: white; overflow: auto; }
+        .editor { display: flex; flex-direction: column; }
+        .editor-header {
+            background: #333; color: white; padding: 1rem;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .editor-content { flex: 1; display: flex; flex-direction: column; }
+        .html-editor, .template-editor {
+            flex: 1; border: none; resize: none;
+            font-family: 'Courier New', monospace; font-size: 14px;
+            padding: 1rem; background: #1e1e1e; color: #fff;
+        }
+        .preview { padding: 2rem; }
+        .preview h2 { margin-top: 0; color: #333; }
+        .run-button {
+            background: #007bff; color: white; border: none;
+            padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;
+        }
+        .run-button:hover { background: #0056b3; }
+        .examples {
+            position: absolute; top: 1rem; right: 1rem; z-index: 1000;
+        }
+        .examples select {
+            padding: 0.5rem; border-radius: 4px; border: 1px solid #ddd;
+        }
+        .status {
+            background: #f8f9fa; padding: 0.5rem 1rem;
+            border-top: 1px solid #ddd; font-size: 12px; color: #666;
+        }
+        .error { color: #dc3545; }
+        .success { color: #28a745; }
+
+        /* Example styles for preview */
+        .user-card {
+            border: 1px solid #ddd; padding: 1rem; margin: 1rem 0;
+            border-radius: 8px; background: white;
+        }
+        .user-card img { border-radius: 50%; margin-right: 1rem; }
+        .search-result {
+            display: flex; align-items: center; gap: 1rem;
+            padding: 0.5rem; border-bottom: 1px solid #eee;
+        }
+        .search-result:hover { background: #f8f9fa; }
+        .loading {
+            color: #007bff; font-style: italic;
+            text-align: center; padding: 2rem;
+        }
+        .todo-item {
+            display: flex; align-items: center; gap: 0.5rem;
+            padding: 0.5rem; border-bottom: 1px solid #eee;
+        }
+        .completed { text-decoration: line-through; opacity: 0.6; }
+    </style>
+</head>
+<body>
+    <div class="examples">
+        <select id="example-selector">
+            <option value="">Choose an example...</option>
+            <option value="github-user">GitHub User Lookup</option>
+            <option value="live-search">Live Search</option>
+            <option value="todo-list">Todo List</option>
+            <option value="form-submit">Form Submission</option>
+            <option value="shopping-cart">Shopping Cart</option>
+        </select>
+    </div>
+
+    <div class="playground">
+        <div class="panel editor">
+            <div class="editor-header">
+                <h3>HTML + htmz</h3>
+                <button class="run-button" onclick="runCode()">▶ Run Code</button>
+            </div>
+            <div class="editor-content">
+                <textarea id="html-editor" class="html-editor" placeholder="Write your HTML with htmz attributes here..."><!-- Try this GitHub user lookup example -->
+<button hz-get="https://api.github.com/users/octocat"
+        hz-template="#user-template"
+        hz-target="#result">
+    Get GitHub User
+</button>
+
+<div id="result"></div></textarea>
+
+                <textarea id="template-editor" class="template-editor" placeholder="Write your templates here..."><template id="user-template">
+    <div class="user-card">
+        <img src="{{avatar_url}}" width="80" alt="{{name}}">
+        <div>
+            <h3>{{name}}</h3>
+            <p>{{bio}}</p>
+            <p>📍 {{location}} • 👥 {{followers}} followers</p>
+            <a href="{{html_url}}" target="_blank">View Profile</a>
+        </div>
+    </div>
+</template></textarea>
+            </div>
+            <div class="status" id="status">Ready to run</div>
+        </div>
+
+        <div class="panel preview">
+            <h2>Live Preview</h2>
+            <div id="preview-content">
+                <p>Click "Run Code" to see your htmz code in action!</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const examples = {
+            'github-user': {
+                html: `<!-- GitHub User Lookup -->
+<button hz-get="https://api.github.com/users/octocat"
+        hz-template="#user-template"
+        hz-target="#result">
+    Get Octocat
+</button>
+
+<button hz-get="https://api.github.com/users/torvalds"
+        hz-template="#user-template"
+        hz-target="#result">
+    Get Torvalds
+</button>
+
+<div id="result"></div>`,
+
+                template: `<template id="user-template">
+    <div class="user-card">
+        <img src="{{avatar_url}}" width="80" alt="{{name}}">
+        <div>
+            <h3>{{name}}</h3>
+            <p>{{bio}}</p>
+            <p>📍 {{location}} • 👥 {{followers}} followers</p>
+            <p>📦 {{public_repos}} repositories</p>
+            <a href="{{html_url}}" target="_blank">View Profile →</a>
+        </div>
+    </div>
+</template>`
+            },
+
+            'live-search': {
+                html: `<!-- Live GitHub User Search -->
+<input type="text"
+       placeholder="Search GitHub users..."
+       hz-get="https://api.github.com/search/users?q={value}"
+       hz-template="#search-results"
+       hz-target="#results"
+       hz-trigger="input changed delay:500ms"
+       hz-indicator="#searching">
+
+<div id="searching" hidden class="loading">🔍 Searching...</div>
+<div id="results"></div>`,
+
+                template: `<template id="search-results">
+    {{?items.length > 0}}
+    <h3>Found {{total_count}} users (showing first {{items.length}})</h3>
+    {{#items}}
+    <div class="search-result">
+        <img src="{{avatar_url}}" width="40" alt="{{login}}">
+        <div>
+            <strong>{{login}}</strong>
+            {{?name}}<br><em>{{name}}</em>{{/?}}
+        </div>
+        <a href="{{html_url}}" target="_blank">View →</a>
+    </div>
+    {{/items}}
+    {{/?}}
+
+    {{?items.length === 0}}
+    <p>No users found. Try a different search term.</p>
+    {{/?}}
+</template>`
+            },
+
+            'todo-list': {
+                html: `<!-- Todo List with Mock API -->
+<form hz-post="https://jsonplaceholder.typicode.com/todos"
+      hz-template="#todo-template"
+      hz-target="#todo-list"
+      hz-swap="prepend">
+    <input name="title" placeholder="Add a new todo..." required>
+    <button type="submit">Add Todo</button>
+</form>
+
+<div id="todo-list">
+    <!-- Load existing todos -->
+    <div hz-get="https://jsonplaceholder.typicode.com/todos?_limit=5"
+         hz-template="#todos-list-template"
+         hz-trigger="load">
+    </div>
+</div>`,
+
+                template: `<template id="todo-template">
+    <div class="todo-item">
+        <input type="checkbox" {{?completed}}checked{{/?}}>
+        <span class="{{?completed}}completed{{/?}}">{{title}}</span>
+        <button onclick="this.parentElement.remove()">Delete</button>
+    </div>
+</template>
+
+<template id="todos-list-template">
+    {{#.}}
+    <div class="todo-item">
+        <input type="checkbox" {{?completed}}checked{{/?}}>
+        <span class="{{?completed}}completed{{/?}}">{{title}}</span>
+        <button onclick="this.parentElement.remove()">Delete</button>
+    </div>
+    {{/.}}
+</template>`
+            },
+
+            'form-submit': {
+                html: `<!-- Contact Form with httpbin.org -->
+<form hz-post="https://httpbin.org/post"
+      hz-template="#form-result"
+      hz-target="#form-response">
+    <div>
+        <input name="name" placeholder="Your name" required>
+    </div>
+    <div>
+        <input name="email" type="email" placeholder="Your email" required>
+    </div>
+    <div>
+        <textarea name="message" placeholder="Your message" required></textarea>
+    </div>
+    <button type="submit">Send Message</button>
+</form>
+
+<div id="form-response"></div>`,
+
+                template: `<template id="form-result">
+    <div class="user-card">
+        <h3>✅ Form Submitted Successfully!</h3>
+        <p><strong>Name:</strong> {{json.name}}</p>
+        <p><strong>Email:</strong> {{json.email}}</p>
+        <p><strong>Message:</strong> {{json.message}}</p>
+        <small>Submitted to: {{url}}</small>
+    </div>
+</template>`
+            },
+
+            'shopping-cart': {
+                html: `<!-- Shopping Cart Demo -->
+<div class="products">
+    <h3>Products</h3>
+    <button onclick="addToCart('laptop', 999)">
+        💻 Laptop - $999
+    </button>
+    <button onclick="addToCart('mouse', 29)">
+        🖱️ Mouse - $29
+    </button>
+    <button onclick="addToCart('keyboard', 79)">
+        ⌨️ Keyboard - $79
+    </button>
+</div>
+
+<div hz-get="/cart"
+     hz-template="#cart-template"
+     hz-target="#cart"
+     hz-trigger="load">
+    <div id="cart"></div>
+</div>`,
+
+                template: `<template id="cart-template">
+    <h3>Shopping Cart</h3>
+    {{?items.length > 0}}
+    {{#items}}
+    <div class="todo-item">
+        <span>{{name}} - ${{price}} x {{quantity}}</span>
+        <button onclick="removeFromCart('{{id}}')">Remove</button>
+    </div>
+    {{/items}}
+    <div class="user-card">
+        <strong>Total: ${{total}}</strong>
+    </div>
+    {{/?}}
+
+    {{?items.length === 0}}
+    <p>Your cart is empty</p>
+    {{/?}}
+</template>`
+            }
+        };
+
+        // Mock shopping cart
+        let cart = [];
+        let cartIdCounter = 1;
+
+        function addToCart(name, price) {
+            const existing = cart.find(item => item.name === name);
+            if (existing) {
+                existing.quantity++;
+            } else {
+                cart.push({
+                    id: cartIdCounter++,
+                    name: name,
+                    price: price,
+                    quantity: 1
+                });
+            }
+            updateCartDisplay();
+        }
+
+        function removeFromCart(id) {
+            cart = cart.filter(item => item.id != id);
+            updateCartDisplay();
+        }
+
+        function updateCartDisplay() {
+            const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const cartData = {
+                items: cart,
+                total: total
+            };
+            htmz.render('#cart-template', cartData, '#cart');
+        }
+
+        // Mock API for cart
+        window.fetch = function(url, options = {}) {
+            if (url === '/cart') {
+                const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                return Promise.resolve({
+                    ok: true,
+                    json: () => Promise.resolve({
+                        items: cart,
+                        total: total
+                    }),
+                    headers: { get: () => 'application/json' }
+                });
+            }
+
+            // Call real fetch for other URLs
+            return originalFetch(url, options);
+        };
+
+        const originalFetch = window.fetch;
+
+        document.getElementById('example-selector').addEventListener('change', function() {
+            const example = examples[this.value];
+            if (example) {
+                document.getElementById('html-editor').value = example.html;
+                document.getElementById('template-editor').value = example.template;
+                runCode();
+            }
+        });
+
+        function runCode() {
+            const htmlCode = document.getElementById('html-editor').value;
+            const templateCode = document.getElementById('template-editor').value;
+            const preview = document.getElementById('preview-content');
+            const status = document.getElementById('status');
+
+            try {
+                // Clear previous content
+                preview.innerHTML = '';
+
+                // Create container
+                const container = document.createElement('div');
+                container.innerHTML = htmlCode + templateCode;
+
+                // Append to preview
+                preview.appendChild(container);
+
+                // Process htmz elements
+                htmz.process(container);
+
+                status.innerHTML = '<span class="success">✅ Code executed successfully</span>';
+            } catch (error) {
+                status.innerHTML = '<span class="error">❌ Error: ' + error.message + '</span>';
+                console.error('Playground error:', error);
+            }
+        }
+
+        // Enable request logging for demo
+        htmz.configure({
+            logRequests: true
+        });
+
+        // Initialize with first example
+        runCode();
+    </script>
+</body>
+</html>

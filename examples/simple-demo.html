@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>htmz - Ultra Simple Demo</title>
+    <style>
+        body { font-family: system-ui; max-width: 600px; margin: 2rem auto; padding: 1rem; }
+        .user { border: 1px solid #ddd; padding: 1rem; margin: 0.5rem 0; border-radius: 4px; }
+        button { padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        input { padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 200px; }
+    </style>
+</head>
+<body>
+    <h1>htmz Ultra Simple Demo</h1>
+
+    <h2>🎯 Zero-Code JSON API Integration</h2>
+
+    <!-- Example 1: Simple button → JSON API → Auto-render -->
+    <button hz-get="https://jsonplaceholder.typicode.com/users/1"
+            hz-template="#user-card"
+            hz-target="#result1">
+        Get User Data (Real API!)
+    </button>
+
+    <div id="result1"></div>
+
+    <template id="user-card">
+        <div class="user">
+            <h3>{{name}}</h3>
+            <p><strong>Email:</strong> {{email}}</p>
+            <p><strong>Phone:</strong> {{phone}}</p>
+            <p><strong>Website:</strong> {{website}}</p>
+            <p><strong>Company:</strong> {{company.name}}</p>
+            <p><strong>Address:</strong> {{address.city}}, {{address.zipcode}}</p>
+        </div>
+    </template>
+
+    <!-- Example 2: Search as you type -->
+    <h2>🔍 Live Search (No JavaScript!)</h2>
+    <input placeholder="Search posts..."
+           hz-get="https://jsonplaceholder.typicode.com/posts"
+           hz-template="#posts-template"
+           hz-target="#search-results"
+           hz-trigger="input changed delay:500ms">
+
+    <div id="search-results"></div>
+
+    <template id="posts-template">
+        {{#slice(0, 3)}}
+        <div class="user">
+            <h4>{{title}}</h4>
+            <p>{{body}}</p>
+            <small>Post ID: {{id}}</small>
+        </div>
+        {{/slice}}
+    </template>
+
+    <!-- Example 3: Load on page load -->
+    <h2>📊 Auto-Load Data</h2>
+    <div hz-get="https://jsonplaceholder.typicode.com/users"
+         hz-template="#users-list"
+         hz-trigger="load">
+    </div>
+
+    <template id="users-list">
+        <h3>{{length}} Users Found:</h3>
+        {{#slice(0, 5)}}
+        <div class="user">
+            <strong>{{name}}</strong> - {{email}}
+            <br><small>{{company.name}}</small>
+        </div>
+        {{/slice}}
+    </template>
+
+    <script src="htmz.js"></script>
+
+    <script>
+        // Simple template helper - just use built-in array slice
+        document.addEventListener('DOMContentLoaded', function() {
+            // Override template processing to handle slice for arrays
+            const originalProcessTemplate = processTemplate;
+            window.processTemplate = function(template, data) {
+                if (Array.isArray(data)) {
+                    // For arrays, add slice method
+                    data.slice = Array.prototype.slice.bind(data);
+                }
+                return originalProcessTemplate(template, data);
+            };
+        });
+    </script>
+</body>
+</html>

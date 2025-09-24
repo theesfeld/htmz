@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>htmz - JSON-Powered HTML Library</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+            line-height: 1.6;
+        }
+
+        .example {
+            border: 1px solid #e1e5e9;
+            border-radius: 6px;
+            margin: 2rem 0;
+            padding: 1.5rem;
+        }
+
+        .example h3 {
+            margin-top: 0;
+            color: #0969da;
+        }
+
+        button {
+            background: #0969da;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 4px;
+        }
+
+        button:hover {
+            background: #0860ca;
+        }
+
+        input {
+            padding: 8px;
+            border: 1px solid #d1d9e0;
+            border-radius: 4px;
+            margin: 4px;
+        }
+
+        .user-card {
+            border: 1px solid #d1d9e0;
+            border-radius: 4px;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            background: #f6f8fa;
+        }
+
+        .todo-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            border-bottom: 1px solid #e1e5e9;
+        }
+
+        .todo-item:last-child {
+            border-bottom: none;
+        }
+
+        .todo-item.completed {
+            text-decoration: line-through;
+            opacity: 0.6;
+        }
+
+        .loading {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .error {
+            color: #d1242f;
+            background: #fff8f8;
+            border: 1px solid #d1242f;
+            padding: 0.5rem;
+            border-radius: 4px;
+        }
+
+        pre {
+            background: #f6f8fa;
+            padding: 1rem;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+
+        #search-results {
+            min-height: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <h1>htmz - JSON-Powered HTML Library</h1>
+    <p>htmz brings declarative JSON-powered interactions to HTML using simple attributes.</p>
+
+    <div class="example">
+        <h3>1. Simple Button Click</h3>
+        <p>Click the button to fetch user data and render it using a template:</p>
+
+        <button hz-post="/api/users"
+                hz-template="#user-template"
+                hz-target="#user-container">
+            Add User
+        </button>
+
+        <div id="user-container"></div>
+
+        <template id="user-template">
+            <div class="user-card">
+                <h4>{{name}}</h4>
+                <p>Email: {{email}}</p>
+                <p>ID: {{id}}</p>
+                <small>Joined: {{created_at}}</small>
+            </div>
+        </template>
+    </div>
+
+    <div class="example">
+        <h3>2. Live Search</h3>
+        <p>Type to search - results update as you type (debounced):</p>
+
+        <input type="text"
+               placeholder="Search users..."
+               hz-get="/api/search"
+               hz-template="#search-result-template"
+               hz-target="#search-results"
+               hz-trigger="input changed delay:300ms"
+               hz-params='{"type": "users"}'>
+
+        <div id="search-results"></div>
+
+        <template id="search-result-template">
+            {{#results}}
+            <div class="user-card">
+                <strong>{{name}}</strong> - {{email}}
+            </div>
+            {{/results}}
+            {{?results.length === 0}}
+            <p>No results found.</p>
+            {{/?}}
+        </template>
+    </div>
+
+    <div class="example">
+        <h3>3. Todo List with JSON</h3>
+        <p>Interactive todo list with add, toggle, and delete:</p>
+
+        <form hz-post="/api/todos"
+              hz-template="#todo-template"
+              hz-target="#todo-list"
+              hz-swap="append">
+            <input name="text" placeholder="New todo..." required>
+            <button type="submit">Add Todo</button>
+        </form>
+
+        <div id="todo-list">
+            <div hz-get="/api/todos"
+                 hz-template="#todos-list-template"
+                 hz-trigger="load">
+            </div>
+        </div>
+
+        <template id="todo-template">
+            <div class="todo-item" data-id="{{id}}">
+                <input type="checkbox"
+                       {{?completed}}checked{{/?}}
+                       hz-patch="/api/todos/{{id}}"
+                       hz-template="#todo-template"
+                       hz-target="closest .todo-item"
+                       hz-swap="outerHTML">
+                <span class="{{?completed}}completed{{/?}}">{{text}}</span>
+                <button hz-delete="/api/todos/{{id}}"
+                        hz-target="closest .todo-item"
+                        hz-swap="delete"
+                        hz-confirm="Delete this todo?">
+                    Delete
+                </button>
+            </div>
+        </template>
+
+        <template id="todos-list-template">
+            {{#todos}}
+            <div class="todo-item" data-id="{{id}}">
+                <input type="checkbox"
+                       {{?completed}}checked{{/?}}
+                       hz-patch="/api/todos/{{id}}"
+                       hz-template="#todo-template"
+                       hz-target="closest .todo-item"
+                       hz-swap="outerHTML">
+                <span class="{{?completed}}completed{{/?}}">{{text}}</span>
+                <button hz-delete="/api/todos/{{id}}"
+                        hz-target="closest .todo-item"
+                        hz-swap="delete"
+                        hz-confirm="Delete this todo?">
+                    Delete
+                </button>
+            </div>
+            {{/todos}}
+        </template>
+    </div>
+
+    <div class="example">
+        <h3>4. Form Submission</h3>
+        <p>Submit form data as JSON and update UI:</p>
+
+        <form hz-post="/api/contact"
+              hz-template="#form-response-template"
+              hz-target="#form-result">
+            <div>
+                <input name="name" placeholder="Your name" required>
+            </div>
+            <div>
+                <input name="email" type="email" placeholder="Your email" required>
+            </div>
+            <div>
+                <textarea name="message" placeholder="Your message" required></textarea>
+            </div>
+            <button type="submit">Send Message</button>
+        </form>
+
+        <div id="form-result"></div>
+
+        <template id="form-response-template">
+            {{?success}}
+            <div class="success">
+                <h4>Message sent!</h4>
+                <p>Thanks {{name}}, we'll get back to you at {{email}}.</p>
+            </div>
+            {{/?}}
+            {{?error}}
+            <div class="error">
+                <h4>Error</h4>
+                <p>{{error}}</p>
+            </div>
+            {{/?}}
+        </template>
+    </div>
+
+    <div class="example">
+        <h3>5. Loading States & Indicators</h3>
+        <p>Show loading indicators during requests:</p>
+
+        <button hz-get="/api/slow-endpoint"
+                hz-template="#loading-result-template"
+                hz-target="#loading-result"
+                hz-indicator="#loading-spinner">
+            Slow Request (3s)
+        </button>
+
+        <div id="loading-spinner" hidden>⏳ Loading...</div>
+        <div id="loading-result"></div>
+
+        <template id="loading-result-template">
+            <div class="user-card">
+                <h4>Slow operation completed!</h4>
+                <p>Response received at {{timestamp}}</p>
+            </div>
+        </template>
+    </div>
+
+    <div class="example">
+        <h3>Mock API Responses</h3>
+        <p>Since this is a demo, here are the JSON responses the API would return:</p>
+
+        <pre><code>POST /api/users → {
+  "id": 123,
+  "name": "John Doe",
+  "email": "john@example.com",
+  "created_at": "2025-01-15"
+}
+
+GET /api/search?q=john → {
+  "results": [
+    {"name": "John Doe", "email": "john@example.com"},
+    {"name": "Jane Johnson", "email": "jane@example.com"}
+  ]
+}
+
+GET /api/todos → {
+  "todos": [
+    {"id": 1, "text": "Learn htmz", "completed": false},
+    {"id": 2, "text": "Build awesome apps", "completed": false}
+  ]
+}</code></pre>
+    </div>
+
+    <script src="htmz.js"></script>
+
+    <script>
+        // Mock API for demo purposes
+        const mockResponses = {
+            '/api/users': {
+                id: Math.floor(Math.random() * 1000),
+                name: 'User ' + Math.floor(Math.random() * 100),
+                email: `user${Math.floor(Math.random() * 100)}@example.com`,
+                created_at: new Date().toISOString().split('T')[0]
+            },
+            '/api/search': {
+                results: [
+                    { name: 'John Doe', email: 'john@example.com' },
+                    { name: 'Jane Smith', email: 'jane@example.com' }
+                ]
+            },
+            '/api/todos': {
+                todos: [
+                    { id: 1, text: 'Learn htmz', completed: false },
+                    { id: 2, text: 'Build awesome apps', completed: true }
+                ]
+            },
+            '/api/contact': {
+                success: true,
+                name: 'Test User',
+                email: 'test@example.com'
+            },
+            '/api/slow-endpoint': {
+                timestamp: new Date().toISOString()
+            }
+        };
+
+        // Mock fetch for demo
+        const originalFetch = window.fetch;
+        window.fetch = async (url, options = {}) => {
+            await new Promise(resolve => setTimeout(resolve,
+                url.includes('slow-endpoint') ? 3000 : 300));
+
+            const mockData = mockResponses[url.split('?')[0]] || { error: 'Not found' };
+
+            return {
+                ok: true,
+                status: 200,
+                json: () => Promise.resolve(mockData),
+                text: () => Promise.resolve(JSON.stringify(mockData)),
+                headers: { get: () => 'application/json' }
+            };
+        };
+
+        // Enable request logging
+        htmz.logRequests(true);
+    </script>
+</body>
+</html>

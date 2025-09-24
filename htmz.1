@@ -1,0 +1,220 @@
+.TH HTMZ 1 "January 2025" "htmz 1.0.0" "User Commands"
+.SH NAME
+htmz \- JSON-powered HTML library for declarative web interactions
+
+.SH SYNOPSIS
+.B <script src="htmz.js"></script>
+.br
+.B <element
+.IR hz-attribute = value
+.IR hz-attribute = value
+.B >
+
+.SH DESCRIPTION
+.B htmz
+is a lightweight JavaScript library that enables JSON API integration directly in HTML using declarative attributes. It eliminates the need for complex JavaScript coding by providing simple HTML attributes that handle AJAX requests, template rendering, and DOM updates automatically.
+
+The library is designed for modern JSON APIs and provides high-performance templating with conditional logic and iterative rendering. All interactions are defined through HTML attributes prefixed with "hz-", making web applications more declarative and maintainable.
+
+.SH OPTIONS
+.SS HTTP Methods
+.TP
+.BI hz-get= url
+Performs HTTP GET request to the specified URL. Triggered by default on 'click' event.
+.TP
+.BI hz-post= url
+Performs HTTP POST request to the specified URL. Form data is automatically serialized to JSON.
+.TP
+.BI hz-put= url
+Performs HTTP PUT request for updating resources.
+.TP
+.BI hz-delete= url
+Performs HTTP DELETE request for removing resources.
+.TP
+.BI hz-patch= url
+Performs HTTP PATCH request for partial resource updates.
+
+.SS Templating and Rendering
+.TP
+.BI hz-template= selector
+Specifies the template to use for rendering JSON responses. Can be a CSS selector (e.g., "#my-template") or inline template string.
+.TP
+.BI hz-target= selector
+Defines where to render the template output. Supports CSS selectors, "this" for current element, "closest", "next", "previous".
+.TP
+.BI hz-swap= strategy
+Controls how content is inserted. Options: innerHTML (default), outerHTML, append, prepend, before, after, replace, delete, none.
+
+.SS Event Handling
+.TP
+.BI hz-trigger= events
+Specifies which events trigger the request. Default is "click". Supports multiple events, delays, and modifiers:
+.RS
+.IP \(bu 2
+Event types: click, input, change, load, submit, focus, blur
+.IP \(bu 2
+Modifiers: changed, once
+.IP \(bu 2
+Timing: delay:300ms, throttle:1000ms
+.RE
+
+.SS Advanced Options
+.TP
+.BI hz-params= json
+Additional parameters to send with the request as JSON object.
+.TP
+.BI hz-headers= json
+Custom HTTP headers as JSON object.
+.TP
+.BI hz-include= selector
+Include values from other form elements in the request.
+.TP
+.BI hz-confirm= message
+Show confirmation dialog before executing request.
+.TP
+.BI hz-indicator= selector
+Show/hide loading indicator elements during request.
+
+.SH TEMPLATE SYNTAX
+Templates use double-brace syntax for variable interpolation and control structures:
+
+.SS Variables
+.TP
+.B {{variable}}
+Simple variable interpolation
+.TP
+.B {{object.property}}
+Nested object access
+.TP
+.B {{array.0.property}}
+Array index access
+
+.SS Conditionals
+.TP
+.B {{?condition}}...{{/?}}
+Conditional rendering block
+.TP
+.B {{?status === 'active'}}...{{/?}}
+Conditional with comparison
+
+.SS Loops
+.TP
+.B {{#array}}...{{/array}}
+Iterate over array elements
+.TP
+.B {{#users}}{{name}}{{/users}}
+Access properties within loop
+
+.SH EXAMPLES
+.SS Basic GET Request
+.nf
+<button hz-get="/api/user/123"
+        hz-template="#user-info"
+        hz-target="#result">
+    Get User
+</button>
+
+<template id="user-info">
+    <div class="user">
+        <h3>{{name}}</h3>
+        <p>{{email}}</p>
+    </div>
+</template>
+.fi
+
+.SS Live Search
+.nf
+<input placeholder="Search..."
+       hz-get="/api/search"
+       hz-template="#search-results"
+       hz-target="#results"
+       hz-trigger="input changed delay:300ms">
+.fi
+
+.SS Form Submission
+.nf
+<form hz-post="/api/contact"
+      hz-template="#form-response"
+      hz-target="#message">
+    <input name="email" required>
+    <button type="submit">Send</button>
+</form>
+.fi
+
+.SS Conditional Template
+.nf
+<template id="user-status">
+    <div class="user">
+        <h3>{{name}}</h3>
+        {{?active}}
+        <span class="badge active">Online</span>
+        {{/?}}
+        {{?premium}}
+        <span class="badge premium">Premium</span>
+        {{/?}}
+    </div>
+</template>
+.fi
+
+.SS Array Iteration
+.nf
+<template id="user-list">
+    <h2>{{users.length}} Users</h2>
+    {{#users}}
+    <div class="user-card">
+        <strong>{{name}}</strong>
+        <p>{{email}}</p>
+    </div>
+    {{/users}}
+</template>
+.fi
+
+.SH JAVASCRIPT API
+When included, htmz also provides a JavaScript API:
+.nf
+htmz.get('/api/data')
+htmz.post('/api/users', {name: 'John'})
+htmz.render('#template', data, '#target')
+htmz.configure({defaultSwap: 'innerHTML'})
+.fi
+
+.SH FILES
+.TP
+.I htmz.js
+Main library file (unminified)
+.TP
+.I htmz.min.js
+Minified production version
+
+.SH DIAGNOSTICS
+Common error messages:
+.TP
+.B "htmz: Target 'selector' not found"
+The specified target element does not exist in the DOM.
+.TP
+.B "htmz: Template element '#id' not found"
+The template element with specified ID cannot be found.
+.TP
+.B "htmz: Request failed: HTTP 404"
+The requested URL returned an error status.
+
+.SH EXIT STATUS
+.B htmz
+runs in the browser and does not have traditional exit status codes. Errors are logged to browser console.
+
+.SH AUTHOR
+William Theesfeld <william@theesfeld.net>
+
+.SH COPYRIGHT
+Copyright (C) 2025 William Theesfeld
+.br
+License GPLv3+: GNU GPL version 3 or later.
+.br
+This is free software: you are free to change and redistribute it.
+
+.SH SEE ALSO
+.BR curl (1),
+.BR jq (1),
+browser developer tools documentation.
+
+For complete documentation visit: https://github.com/willtheesfeld/htmz
