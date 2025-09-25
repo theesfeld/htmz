@@ -1,10 +1,10 @@
-name: Bump Version
+name: Bump Create-HTMZ-App Version
 
 on:
   workflow_dispatch:
     inputs:
       version_type:
-        description: 'Version bump type'
+        description: 'Version bump type for create-htmz-app'
         required: true
         default: 'patch'
         type: choice
@@ -14,7 +14,7 @@ on:
           - major
 
 jobs:
-  bump:
+  bump-create-app:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -35,39 +35,36 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
 
-      - name: Get current version
+      - name: Get current create-htmz-app version
         id: current_version
         run: |
+          cd create-htmz-app
           CURRENT=$(node -p "require('./package.json').version")
           echo "CURRENT_VERSION=$CURRENT" >> $GITHUB_OUTPUT
-          echo "Current version: $CURRENT"
+          echo "Current create-htmz-app version: $CURRENT"
 
-      - name: Bump version
+      - name: Bump create-htmz-app version
         id: bump_version
         run: |
+          cd create-htmz-app
           NEW_VERSION=$(npm version ${{ github.event.inputs.version_type }} --no-git-tag-version)
           NEW_VERSION=${NEW_VERSION#v}  # Remove 'v' prefix that npm adds
           echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "New version: $NEW_VERSION"
+          echo "New create-htmz-app version: $NEW_VERSION"
 
-      - name: Build package
+      - name: Commit create-htmz-app version bump
         run: |
-          make clean
-          make build
+          git add create-htmz-app/package.json
+          git commit -m "Bump create-htmz-app version to ${{ steps.bump_version.outputs.NEW_VERSION }}"
 
-      - name: Commit version bump
+      - name: Create and push create-htmz-app tag
         run: |
-          git add package.json
-          git commit -m "Bump version to ${{ steps.bump_version.outputs.NEW_VERSION }}"
-
-      - name: Create and push tag
-        run: |
-          git tag v${{ steps.bump_version.outputs.NEW_VERSION }}
+          git tag create-app-v${{ steps.bump_version.outputs.NEW_VERSION }}
           git push origin master
-          git push origin v${{ steps.bump_version.outputs.NEW_VERSION }}
+          git push origin create-app-v${{ steps.bump_version.outputs.NEW_VERSION }}
 
       - name: Summary
         run: |
-          echo "✅ Version bumped from ${{ steps.current_version.outputs.CURRENT_VERSION }} to ${{ steps.bump_version.outputs.NEW_VERSION }}"
-          echo "🏷️ Created tag: v${{ steps.bump_version.outputs.NEW_VERSION }}"
-          echo "🚀 Release workflow will trigger automatically"
+          echo "✅ create-htmz-app version bumped from ${{ steps.current_version.outputs.CURRENT_VERSION }} to ${{ steps.bump_version.outputs.NEW_VERSION }}"
+          echo "🏷️ Created tag: create-app-v${{ steps.bump_version.outputs.NEW_VERSION }}"
+          echo "🚀 Create-app release workflow will trigger automatically"

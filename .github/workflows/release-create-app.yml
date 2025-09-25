@@ -1,0 +1,79 @@
+name: Release Create-HTMZ-App
+
+on:
+  push:
+    tags:
+      - 'create-app-v*.*.*'
+
+jobs:
+  release-create-app:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Extract version from tag
+        id: get_version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/create-app-v}
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+
+      - name: Update create-htmz-app package.json version
+        run: |
+          cd create-htmz-app
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          if [ "$CURRENT_VERSION" != "${{ steps.get_version.outputs.VERSION }}" ]; then
+            npm version ${{ steps.get_version.outputs.VERSION }} --no-git-tag-version
+            echo "Updated create-htmz-app package.json from $CURRENT_VERSION to ${{ steps.get_version.outputs.VERSION }}"
+          else
+            echo "create-htmz-app package.json already at version ${{ steps.get_version.outputs.VERSION }}"
+          fi
+
+      - name: Publish create-htmz-app to npm
+        run: |
+          cd create-htmz-app
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create GitHub Release for create-htmz-app
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: create-app-v${{ steps.get_version.outputs.VERSION }}
+          name: Create-HTMZ-App ${{ steps.get_version.outputs.VERSION }}
+          body: |
+            ## @htmz/create-htmz-app v${{ steps.get_version.outputs.VERSION }}
+
+            ### 🚀 Usage
+            ```bash
+            npm create @htmz/htmz-app@${{ steps.get_version.outputs.VERSION }} my-app
+            # or
+            npx @htmz/create-htmz-app@${{ steps.get_version.outputs.VERSION }} my-app
+            ```
+
+            ### 📦 Features
+            - Zero-configuration project scaffolding
+            - Secure TOML proxy configuration
+            - Pre-configured GitHub Actions workflows
+            - Complete htmz development environment
+
+            ### 📋 Changes
+            See commit history for detailed changes in this release.
+          files: |
+            create-htmz-app/index.js
+            create-htmz-app/package.json
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
