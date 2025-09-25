@@ -97,7 +97,8 @@ const HZ_ATTRIBUTES = [
     'hz-template', 'hz-target', 'hz-swap', 'hz-trigger',
     'hz-params', 'hz-headers', 'hz-include', 'hz-confirm',
     'hz-indicator', 'hz-sync', 'hz-swap-oob', 'hz-push-url',
-    'hz-select', 'hz-select-oob', 'hz-preserve'
+    'hz-select', 'hz-select-oob', 'hz-preserve',
+    'hz-tag', 'hz-batch'
 ];
 
 function parseAttributes(element) {
@@ -118,7 +119,9 @@ function parseAttributes(element) {
         pushUrl: null,
         select: null,
         selectOob: null,
-        preserve: null
+        preserve: null,
+        tag: null,
+        batch: null
     };
 
     for (const attr of HZ_ATTRIBUTES) {
@@ -179,6 +182,14 @@ function parseAttributes(element) {
 
             case 'preserve':
                 config.preserve = value;
+                break;
+
+            case 'tag':
+                config.tag = value;
+                break;
+
+            case 'batch':
+                config.batch = parseBatch(value);
                 break;
 
             default:
@@ -302,6 +313,28 @@ function parseSimpleHeaders(headersStr) {
     return headers;
 }
 
+function parseBatch(batchStr) {
+    const batchRequests = [];
+    const pairs = batchStr.split(',');
+
+    for (const pair of pairs) {
+        const trimmedPair = pair.trim();
+        const colonIndex = trimmedPair.indexOf(':');
+
+        if (colonIndex > 0) {
+            const tag = trimmedPair.substring(0, colonIndex).trim();
+            const url = trimmedPair.substring(colonIndex + 1).trim();
+
+            if (tag && url) {
+                batchRequests.push({ tag, url });
+            }
+        }
+    }
+
+    return batchRequests.length > 0 ? batchRequests : null;
+}
+
+
 function findElementsWithAttributes() {
     const selector = HZ_ATTRIBUTES.map(attr => `[${attr}]`).join(',');
     return document.querySelectorAll(selector);
@@ -398,7 +431,8 @@ async function makeProxyRequest(method, url, data, config = {}) {
             url: url,
             method: method.toUpperCase(),
             headers: config.headers || {},
-            body: data
+            body: data,
+            tag: config.tag || null
         };
 
         const signature = await computeHMAC(proxyPayload, secret);
@@ -469,6 +503,11 @@ function handleProxyResponse(response) {
             error.metadata = proxyData.metadata;
             error.type = proxyData.type;
             throw error;
+        }
+
+        // Store tagged data if tag is present in metadata
+        if (proxyData.metadata && proxyData.metadata.tag && window.htmz && window.htmz.store) {
+            window.htmz.store.storeTaggedData(proxyData.metadata.tag, proxyData.data, proxyData.metadata);
         }
 
         // Log metadata for debugging if enabled
@@ -729,7 +768,30 @@ function processInterpolations(template, data) {
 
 function processBlocks(template, data) {
     return template.replace(BLOCK_REGEX, (match, arrayName, blockTemplate) => {
-        const array = getNestedProperty(data, arrayName);
+        let array;
+
+        // Check for tagged data first (e.g., "repos" could be a tag)
+        if (window.htmz && window.htmz.store && window.htmz.store.hasTaggedData(arrayName)) {
+            array = window.htmz.store.getTaggedData(arrayName);
+        } else if (arrayName.includes('.')) {
+            // Check for tagged nested array (e.g., "user1.repos")
+            const firstDot = arrayName.indexOf('.');
+            const possibleTag = arrayName.substring(0, firstDot);
+
+            if (window.htmz && window.htmz.store && window.htmz.store.hasTaggedData(possibleTag)) {
+                const taggedData = window.htmz.store.getTaggedData(possibleTag);
+                if (taggedData) {
+                    const property = arrayName.substring(firstDot + 1);
+                    array = getNestedProperty(taggedData, property);
+                }
+            } else {
+                // Fall back to current response data
+                array = getNestedProperty(data, arrayName);
+            }
+        } else {
+            // Fall back to current response data
+            array = getNestedProperty(data, arrayName);
+        }
 
         if (!isArray(array)) {
             return '';
@@ -750,7 +812,21 @@ function processConditionals(template, data) {
 
 function evaluateExpression(expression, data) {
     try {
+        // Check for tagged data first (e.g., "user1.name")
         if (expression.includes('.')) {
+            const firstDot = expression.indexOf('.');
+            const possibleTag = expression.substring(0, firstDot);
+
+            // Check if this looks like a tag reference and we have the store available
+            if (window.htmz && window.htmz.store && window.htmz.store.hasTaggedData(possibleTag)) {
+                const taggedData = window.htmz.store.getTaggedData(possibleTag);
+                if (taggedData) {
+                    const property = expression.substring(firstDot + 1);
+                    return getNestedProperty(taggedData, property) ?? '';
+                }
+            }
+
+            // Fall back to current response data (backward compatible)
             return getNestedProperty(data, expression) ?? '';
         }
 
@@ -1402,6 +1478,11 @@ function executeRequest(element, config, triggerEvent) {
         }
     }
 
+    // Handle batch requests
+    if (config.batch && Array.isArray(config.batch)) {
+        return executeBatchRequest(element, config, triggerEvent);
+    }
+
     showIndicator(element, config);
     addRequestClass(element);
 
@@ -1423,7 +1504,8 @@ function executeRequest(element, config, triggerEvent) {
 
     makeRequest(config.method, url, requestData, {
         headers: resolvedHeaders,
-        signal: controller.signal
+        signal: controller.signal,
+        tag: config.tag
     })
         .then(response => {
             markRequestEnd(element);
@@ -1576,6 +1658,87 @@ function addSettlingClass(element) {
             element.classList.remove(htmz.config.settlingClass);
         }, htmz.config.defaultSettleDelay || 20);
     }
+}
+
+async function executeBatchRequest(element, config, triggerEvent) {
+    showIndicator(element, config);
+    addRequestClass(element);
+
+    const controller = createAbortController();
+    markRequestStart(element, controller);
+
+    const data = serializeElement(element, config);
+
+    try {
+        const batchPromises = config.batch.map(async (batchItem) => {
+            const { tag, url } = batchItem;
+
+            // SECURITY: Resolve environment variables at runtime, not in DOM
+            const resolvedUrl = typeof resolveEnvVars === 'function'
+                ? resolveEnvVars(url)
+                : url;
+            const resolvedHeaders = config.headers && typeof resolveEnvVars === 'function'
+                ? resolveObjectEnvVars(config.headers)
+                : config.headers;
+
+            const finalUrl = config.method === 'GET' ? buildUrl(resolvedUrl, data) : resolvedUrl;
+            const requestData = config.method === 'GET' ? null : data;
+
+            return makeRequest(config.method || 'GET', finalUrl, requestData, {
+                headers: resolvedHeaders,
+                signal: controller.signal,
+                tag: tag
+            }).then(response => ({ tag, response }));
+        });
+
+        const batchResults = await Promise.all(batchPromises);
+
+        markRequestEnd(element);
+        hideIndicator(element, config);
+        removeRequestClass(element);
+
+        triggerCustomEvent(element, 'hz:beforeSwap', {
+            responses: batchResults.map(r => r.response),
+            config,
+            triggerEvent
+        });
+
+        if (config.template) {
+            // For batch requests, we pass the last response as the main data for backward compatibility
+            const lastResponse = batchResults.length > 0 ? batchResults[batchResults.length - 1].response : {};
+
+            const html = renderTemplate(config.template, lastResponse);
+            const target = config.target || 'this';
+            const swappedElement = updateDOM(target, html, config.swap, element);
+
+            triggerCustomEvent(element, 'hz:afterSwap', {
+                responses: batchResults.map(r => r.response),
+                config,
+                triggerEvent,
+                swappedElement
+            });
+        }
+
+        triggerCustomEvent(element, 'hz:requestComplete', {
+            responses: batchResults.map(r => r.response),
+            config,
+            triggerEvent
+        });
+    } catch (error) {
+        markRequestEnd(element);
+        hideIndicator(element, config);
+        removeRequestClass(element);
+
+        triggerCustomEvent(element, 'hz:requestError', {
+            error,
+            config,
+            triggerEvent
+        });
+
+        if (htmz.config.logRequests) {
+            console.error('htmz: Batch request failed:', error);
+        }
+    }
 }/*
  * env.js - Environment variable placeholder detection for htmz
  * Copyright (C) 2025 William Theesfeld <william@theesfeld.net>
@@ -1684,6 +1847,114 @@ function configureEnvVars() {
     console.warn('htmz: Client-side environment variables are no longer supported');
     console.warn('htmz: Use the proxy server configuration instead: npx htmz proxy');
 }/*
+ * store.js - Tagged data store for htmz
+ *
+ * Copyright (C) 2025 William Theesfeld <william@theesfeld.net>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+(function() {
+    'use strict';
+
+    const dataStore = {};
+    const metadata = {};
+
+    function storeTaggedData(tag, data, responseMetadata) {
+        if (!tag || typeof tag !== 'string') return false;
+
+        dataStore[tag] = data;
+        metadata[tag] = {
+            timestamp: Date.now(),
+            ...responseMetadata
+        };
+
+        dataStore['_lastResponse'] = data;
+        metadata['_lastResponse'] = metadata[tag];
+
+        return true;
+    }
+
+    function getTaggedData(tag) {
+        if (!tag || typeof tag !== 'string') return undefined;
+        return dataStore[tag];
+    }
+
+    function getTaggedMetadata(tag) {
+        if (!tag || typeof tag !== 'string') return undefined;
+        return metadata[tag];
+    }
+
+    function hasTaggedData(tag) {
+        if (!tag || typeof tag !== 'string') return false;
+        return dataStore.hasOwnProperty(tag);
+    }
+
+    function clearTaggedData(tag) {
+        if (!tag) {
+            Object.keys(dataStore).forEach(key => delete dataStore[key]);
+            Object.keys(metadata).forEach(key => delete metadata[key]);
+            return true;
+        }
+
+        if (typeof tag === 'string' && dataStore.hasOwnProperty(tag)) {
+            delete dataStore[tag];
+            delete metadata[tag];
+            return true;
+        }
+
+        return false;
+    }
+
+    function getAllTags() {
+        return Object.keys(dataStore).filter(key => key !== '_lastResponse');
+    }
+
+    function getStoreStats() {
+        const tags = getAllTags();
+        return {
+            totalTags: tags.length,
+            tags: tags,
+            memoryUsage: JSON.stringify(dataStore).length
+        };
+    }
+
+    if (typeof window !== 'undefined') {
+        window.htmz = window.htmz || {};
+        window.htmz.store = {
+            storeTaggedData,
+            getTaggedData,
+            getTaggedMetadata,
+            hasTaggedData,
+            clearTaggedData,
+            getAllTags,
+            getStoreStats
+        };
+    }
+
+    if (typeof module !== 'undefined' && module.exports) {
+        module.exports = {
+            storeTaggedData,
+            getTaggedData,
+            getTaggedMetadata,
+            hasTaggedData,
+            clearTaggedData,
+            getAllTags,
+            getStoreStats
+        };
+    }
+})();/*
  * htmz.js - High-performance JSON-powered HTML library
  * Copyright (C) 2025 William Theesfeld <william@theesfeld.net>
  *
@@ -1697,7 +1968,7 @@ function configureEnvVars() {
 
 (function(global) {
 
-    const HTMZ_VERSION = '1.0.0';
+    const HTMZ_VERSION = '1.2.0';
     const INITIALIZED_ATTR = 'data-hz-init';
 
     const htmz = {
@@ -1733,6 +2004,22 @@ function configureEnvVars() {
         setupMutationObserver();
         setupGlobalErrorHandler();
         setupBeforeUnloadHandler();
+
+        // Ensure store is available for tagged data
+        if (typeof window !== 'undefined' && !window.htmz) {
+            window.htmz = {};
+        }
+        if (typeof window !== 'undefined' && !window.htmz.store && typeof storeTaggedData === 'function') {
+            window.htmz.store = {
+                storeTaggedData,
+                getTaggedData,
+                getTaggedMetadata,
+                hasTaggedData,
+                clearTaggedData,
+                getAllTags,
+                getStoreStats
+            };
+        }
     }
 
     function initializeElements() {

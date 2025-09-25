@@ -67,7 +67,30 @@ function processInterpolations(template, data) {
 
 function processBlocks(template, data) {
     return template.replace(BLOCK_REGEX, (match, arrayName, blockTemplate) => {
-        const array = getNestedProperty(data, arrayName);
+        let array;
+
+        // Check for tagged data first (e.g., "repos" could be a tag)
+        if (window.htmz && window.htmz.store && window.htmz.store.hasTaggedData(arrayName)) {
+            array = window.htmz.store.getTaggedData(arrayName);
+        } else if (arrayName.includes('.')) {
+            // Check for tagged nested array (e.g., "user1.repos")
+            const firstDot = arrayName.indexOf('.');
+            const possibleTag = arrayName.substring(0, firstDot);
+
+            if (window.htmz && window.htmz.store && window.htmz.store.hasTaggedData(possibleTag)) {
+                const taggedData = window.htmz.store.getTaggedData(possibleTag);
+                if (taggedData) {
+                    const property = arrayName.substring(firstDot + 1);
+                    array = getNestedProperty(taggedData, property);
+                }
+            } else {
+                // Fall back to current response data
+                array = getNestedProperty(data, arrayName);
+            }
+        } else {
+            // Fall back to current response data
+            array = getNestedProperty(data, arrayName);
+        }
 
         if (!isArray(array)) {
             return '';
@@ -88,7 +111,21 @@ function processConditionals(template, data) {
 
 function evaluateExpression(expression, data) {
     try {
+        // Check for tagged data first (e.g., "user1.name")
         if (expression.includes('.')) {
+            const firstDot = expression.indexOf('.');
+            const possibleTag = expression.substring(0, firstDot);
+
+            // Check if this looks like a tag reference and we have the store available
+            if (window.htmz && window.htmz.store && window.htmz.store.hasTaggedData(possibleTag)) {
+                const taggedData = window.htmz.store.getTaggedData(possibleTag);
+                if (taggedData) {
+                    const property = expression.substring(firstDot + 1);
+                    return getNestedProperty(taggedData, property) ?? '';
+                }
+            }
+
+            // Fall back to current response data (backward compatible)
             return getNestedProperty(data, expression) ?? '';
         }
 

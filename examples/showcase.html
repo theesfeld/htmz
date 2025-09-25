@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>htmz v1.2.0 - Complete Showcase</title>
+    <script src="../dist/htmz.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .showcase-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+        }
+
+        .demo-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .demo-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .demo-card h2 {
+            color: #5a67d8;
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .demo-card .subtitle {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin: 5px;
+            display: inline-block;
+            text-decoration: none;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn.secondary {
+            background: #4a5568;
+        }
+
+        .btn.success {
+            background: #48bb78;
+        }
+
+        .btn.danger {
+            background: #f56565;
+        }
+
+        .result-area {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f7fafc;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            min-height: 100px;
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .user-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .user-card img {
+            border-radius: 50%;
+            margin-bottom: 15px;
+        }
+
+        .user-card h3 {
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin: 15px 0;
+        }
+
+        .stat {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .stat h3 {
+            color: #5a67d8;
+            font-size: 1.8rem;
+            margin-bottom: 5px;
+        }
+
+        .live-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #48bb78;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .stream-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 6px;
+            border-left: 3px solid #667eea;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(-20px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .debug-panel {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            max-width: 300px;
+            z-index: 1000;
+            display: none;
+        }
+
+        .debug-panel.show {
+            display: block;
+        }
+
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+            transform: scale(0.98);
+        }
+
+        .hz-request {
+            position: relative;
+        }
+
+        .hz-request::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .performance-metrics {
+            background: #2d3748;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+
+        .tag-viewer {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .error-display {
+            background: #fed7d7;
+            color: #c53030;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            border-left: 4px solid #f56565;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🚀 htmz v1.2.0</h1>
+            <p>Complete Showcase - Tagged API Responses, Batch Requests & Real-time Streaming</p>
+        </header>
+
+        <div class="showcase-grid">
+            <!-- 1. Basic Tagging -->
+            <div class="demo-card">
+                <h2>🏷️ Basic API Tagging</h2>
+                <div class="subtitle">Load multiple GitHub users with individual tags</div>
+
+                <button class="btn"
+                        hz-get="https://api.github.com/users/octocat"
+                        hz-tag="github_user1"
+                        hz-template="#user-card-template"
+                        hz-target="#user1-slot">
+                    Load octocat
+                </button>
+
+                <button class="btn secondary"
+                        hz-get="https://api.github.com/users/torvalds"
+                        hz-tag="github_user2"
+                        hz-template="#user-card-template"
+                        hz-target="#user2-slot">
+                    Load torvalds
+                </button>
+
+                <div class="comparison-grid">
+                    <div id="user1-slot" class="result-area"></div>
+                    <div id="user2-slot" class="result-area"></div>
+                </div>
+
+                <button class="btn success"
+                        hz-template="#comparison-template"
+                        hz-target="#comparison-result">
+                    🔄 Compare Users
+                </button>
+
+                <div id="comparison-result"></div>
+            </div>
+
+            <!-- 2. Batch Requests -->
+            <div class="demo-card">
+                <h2>⚡ Batch API Requests</h2>
+                <div class="subtitle">Multiple APIs loaded simultaneously with one click</div>
+
+                <button class="btn"
+                        hz-batch="profile:https://api.github.com/users/octocat,
+                                  repos:https://api.github.com/users/octocat/repos,
+                                  followers:https://api.github.com/users/octocat/followers"
+                        hz-template="#dashboard-template"
+                        hz-target="#dashboard-result">
+                    📊 Load Complete Dashboard
+                </button>
+
+                <div id="dashboard-result" class="result-area"></div>
+            </div>
+
+            <!-- 3. Cross-API Integration -->
+            <div class="demo-card">
+                <h2>🌐 Cross-API Integration</h2>
+                <div class="subtitle">Mix data from different APIs in one template</div>
+
+                <button class="btn"
+                        hz-get="https://api.github.com/users/microsoft"
+                        hz-tag="company_profile"
+                        hz-template="#simple-user-template"
+                        hz-target="#company-slot">
+                    Load Company
+                </button>
+
+                <button class="btn secondary"
+                        hz-get="https://api.github.com/orgs/microsoft/repos?per_page=5&sort=stars"
+                        hz-tag="company_repos"
+                        hz-template="#repos-template"
+                        hz-target="#repos-slot">
+                    Load Top Repos
+                </button>
+
+                <button class="btn success"
+                        hz-template="#mixed-template"
+                        hz-target="#mixed-result">
+                    🔗 Combine Data
+                </button>
+
+                <div class="comparison-grid">
+                    <div id="company-slot" class="result-area"></div>
+                    <div id="repos-slot" class="result-area"></div>
+                </div>
+                <div id="mixed-result"></div>
+            </div>
+
+            <!-- 4. Real-time Data Simulation -->
+            <div class="demo-card">
+                <h2>📡 Real-time Updates</h2>
+                <div class="subtitle">Simulated streaming data with persistent tags</div>
+
+                <button class="btn" onclick="startRealtimeDemo()">
+                    <span class="live-indicator"></span>
+                    Start Live Updates
+                </button>
+
+                <button class="btn danger" onclick="stopRealtimeDemo()">
+                    ⏹️ Stop Updates
+                </button>
+
+                <div id="realtime-metrics" class="result-area">
+                    <div class="stats-grid">
+                        <div class="stat">
+                            <h3 id="active-users">0</h3>
+                            <p>Active Users</p>
+                        </div>
+                        <div class="stat">
+                            <h3 id="api-calls">0</h3>
+                            <p>API Calls</p>
+                        </div>
+                        <div class="stat">
+                            <h3 id="data-transferred">0</h3>
+                            <p>MB Transferred</p>
+                        </div>
+                    </div>
+                    <div id="live-feed"></div>
+                </div>
+            </div>
+
+            <!-- 5. Dynamic Content Management -->
+            <div class="demo-card">
+                <h2>🎯 Dynamic Content</h2>
+                <div class="subtitle">Tag-based content swapping and updates</div>
+
+                <button class="btn"
+                        hz-get="https://api.github.com/search/repositories?q=javascript&sort=stars&per_page=3"
+                        hz-tag="js_repos"
+                        hz-template="#repo-list-template"
+                        hz-target="#dynamic-content">
+                    JavaScript Repos
+                </button>
+
+                <button class="btn secondary"
+                        hz-get="https://api.github.com/search/repositories?q=python&sort=stars&per_page=3"
+                        hz-tag="python_repos"
+                        hz-template="#repo-list-template"
+                        hz-target="#dynamic-content">
+                    Python Repos
+                </button>
+
+                <button class="btn"
+                        hz-get="https://api.github.com/search/repositories?q=rust&sort=stars&per_page=3"
+                        hz-tag="rust_repos"
+                        hz-template="#repo-list-template"
+                        hz-target="#dynamic-content">
+                    Rust Repos
+                </button>
+
+                <div id="dynamic-content" class="result-area"></div>
+
+                <button class="btn success"
+                        hz-template="#all-languages-template"
+                        hz-target="#all-languages-result">
+                    📊 Compare All Languages
+                </button>
+
+                <div id="all-languages-result"></div>
+            </div>
+
+            <!-- 6. Performance Monitoring -->
+            <div class="demo-card">
+                <h2>⚡ Performance Monitor</h2>
+                <div class="subtitle">Real-time tracking of tagged data store</div>
+
+                <button class="btn" onclick="refreshPerformanceMetrics()">
+                    🔄 Refresh Metrics
+                </button>
+
+                <button class="btn secondary" onclick="clearAllTags()">
+                    🗑️ Clear All Tags
+                </button>
+
+                <button class="btn" onclick="toggleDebugPanel()">
+                    🐛 Toggle Debug
+                </button>
+
+                <div class="performance-metrics">
+                    <div id="performance-stats">Click "Refresh Metrics" to see store statistics</div>
+                </div>
+
+                <div class="tag-viewer">
+                    <div id="tag-contents">Tagged data will appear here...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Debug Panel -->
+    <div id="debug-panel" class="debug-panel">
+        <h4>🐛 Debug Information</h4>
+        <div id="debug-content">Debug info will appear here...</div>
+    </div>
+
+    <!-- Templates -->
+    <template id="user-card-template">
+        <div class="user-card">
+            <img src="{{avatar_url}}" width="60" alt="{{name}}">
+            <h3>{{name}}</h3>
+            <p>@{{login}}</p>
+            <p>{{bio}}</p>
+            <div style="margin-top: 10px; font-size: 0.9rem; color: #666;">
+                <strong>{{public_repos}}</strong> repos •
+                <strong>{{followers}}</strong> followers
+            </div>
+        </div>
+    </template>
+
+    <template id="simple-user-template">
+        <div style="text-align: center;">
+            <img src="{{avatar_url}}" width="50" alt="{{name}}" style="border-radius: 50%;">
+            <h4>{{name}}</h4>
+            <p>{{public_repos}} repositories</p>
+        </div>
+    </template>
+
+    <template id="repos-template">
+        <div>
+            <h4>Top Repositories</h4>
+            {{#items}}
+                {{?@index < 3}}
+                <div style="margin: 8px 0; padding: 8px; background: #f8f9fa; border-radius: 4px;">
+                    <strong>{{name}}</strong><br>
+                    <small>⭐ {{stargazers_count}} stars</small>
+                </div>
+                {{/?}}
+            {{/items}}
+        </div>
+    </template>
+
+    <template id="comparison-template">
+        <div class="result-area" style="margin-top: 20px;">
+            <h3>👥 User Comparison</h3>
+            <div class="comparison-grid">
+                <div style="text-align: center;">
+                    <img src="{{github_user1.avatar_url}}" width="50" style="border-radius: 50%;">
+                    <h4>{{github_user1.name}}</h4>
+                    <div class="stats-grid">
+                        <div class="stat">
+                            <h3>{{github_user1.followers}}</h3>
+                            <p>Followers</p>
+                        </div>
+                        <div class="stat">
+                            <h3>{{github_user1.public_repos}}</h3>
+                            <p>Repos</p>
+                        </div>
+                    </div>
+                </div>
+                <div style="text-align: center;">
+                    <img src="{{github_user2.avatar_url}}" width="50" style="border-radius: 50%;">
+                    <h4>{{github_user2.name}}</h4>
+                    <div class="stats-grid">
+                        <div class="stat">
+                            <h3>{{github_user2.followers}}</h3>
+                            <p>Followers</p>
+                        </div>
+                        <div class="stat">
+                            <h3>{{github_user2.public_repos}}</h3>
+                            <p>Repos</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div style="text-align: center; margin-top: 15px; padding: 15px; background: #e6fffa; border-radius: 8px;">
+                {{?github_user1.followers > github_user2.followers}}
+                    <strong>🏆 {{github_user1.name}}</strong> has more followers!
+                {{/?}}
+                {{?github_user2.followers > github_user1.followers}}
+                    <strong>🏆 {{github_user2.name}}</strong> has more followers!
+                {{/?}}
+                {{?github_user1.followers == github_user2.followers}}
+                    <strong>🤝 It's a tie!</strong> Both have {{github_user1.followers}} followers.
+                {{/?}}
+            </div>
+        </div>
+    </template>
+
+    <template id="dashboard-template">
+        <div>
+            <h3>📊 {{profile.name}}'s GitHub Dashboard</h3>
+            <div class="stats-grid">
+                <div class="stat">
+                    <h3>{{repos.length}}</h3>
+                    <p>Public Repos</p>
+                </div>
+                <div class="stat">
+                    <h3>{{profile.followers}}</h3>
+                    <p>Followers</p>
+                </div>
+                <div class="stat">
+                    <h3>{{followers.length}}</h3>
+                    <p>Real Followers</p>
+                </div>
+                <div class="stat">
+                    <h3>{{profile.following}}</h3>
+                    <p>Following</p>
+                </div>
+            </div>
+
+            <h4>🌟 Top Repositories</h4>
+            {{#repos}}
+                {{?@index < 5}}
+                <div style="margin: 10px 0; padding: 12px; background: white; border-radius: 6px; border-left: 3px solid #667eea;">
+                    <strong>{{name}}</strong> - {{description}}
+                    <br><small style="color: #666;">
+                        ⭐ {{stargazers_count}} stars •
+                        🍴 {{forks_count}} forks •
+                        {{language}}
+                    </small>
+                </div>
+                {{/?}}
+            {{/repos}}
+        </div>
+    </template>
+
+    <template id="mixed-template">
+        <div class="result-area" style="margin-top: 20px;">
+            <h3>🔗 Cross-API Integration</h3>
+            <div style="background: white; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                <h4>{{company_profile.name}}</h4>
+                <p>{{company_profile.bio}}</p>
+                <div class="stats-grid">
+                    <div class="stat">
+                        <h3>{{company_profile.public_repos}}</h3>
+                        <p>Total Repos</p>
+                    </div>
+                    <div class="stat">
+                        <h3>{{company_repos.items.length}}</h3>
+                        <p>Top Repos</p>
+                    </div>
+                </div>
+            </div>
+            <h4>🏆 Most Starred Repositories</h4>
+            {{#company_repos.items}}
+                <div style="margin: 8px 0; padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                    <strong>{{name}}</strong><br>
+                    <small>⭐ {{stargazers_count}} stars • {{language}}</small>
+                </div>
+            {{/company_repos.items}}
+        </div>
+    </template>
+
+    <template id="repo-list-template">
+        <div>
+            <h4>📦 Repository Search Results</h4>
+            {{#items}}
+                <div style="margin: 10px 0; padding: 12px; background: white; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <strong>{{name}}</strong> - {{description}}
+                    <br><small style="color: #666;">
+                        ⭐ {{stargazers_count}} stars •
+                        {{language}} •
+                        Owner: {{owner.login}}
+                    </small>
+                </div>
+            {{/items}}
+        </div>
+    </template>
+
+    <template id="all-languages-template">
+        <div class="result-area" style="margin-top: 20px;">
+            <h3>📊 Language Comparison</h3>
+            <div style="background: white; padding: 15px; border-radius: 8px;">
+                <div class="stats-grid">
+                    <div class="stat">
+                        <h3>{{js_repos.items.length}}</h3>
+                        <p>JavaScript</p>
+                    </div>
+                    <div class="stat">
+                        <h3>{{python_repos.items.length}}</h3>
+                        <p>Python</p>
+                    </div>
+                    <div class="stat">
+                        <h3>{{rust_repos.items.length}}</h3>
+                        <p>Rust</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <script>
+        let realtimeInterval;
+        let realtimeCounter = 0;
+
+        // Performance monitoring
+        function refreshPerformanceMetrics() {
+            if (window.htmz && window.htmz.store) {
+                const stats = window.htmz.store.getStoreStats();
+                const performanceHtml = `
+                    <strong>🏷️ Tagged Data Store Statistics</strong><br>
+                    Total Tags: ${stats.totalTags}<br>
+                    Memory Usage: ${(stats.memoryUsage / 1024).toFixed(2)} KB<br>
+                    Active Tags: ${stats.tags.join(', ') || 'None'}<br>
+                    Last Updated: ${new Date().toLocaleTimeString()}
+                `;
+                document.getElementById('performance-stats').innerHTML = performanceHtml;
+
+                // Show tag contents
+                let tagContents = '<strong>📋 Tag Contents:</strong><br><br>';
+                stats.tags.forEach(tag => {
+                    const data = window.htmz.store.getTaggedData(tag);
+                    const preview = JSON.stringify(data, null, 2).substring(0, 200);
+                    tagContents += `<strong>${tag}:</strong><br><pre style="font-size: 0.8rem; margin: 5px 0; white-space: pre-wrap;">${preview}${preview.length >= 200 ? '...' : ''}</pre><br>`;
+                });
+                document.getElementById('tag-contents').innerHTML = tagContents;
+            } else {
+                document.getElementById('performance-stats').innerHTML = '❌ htmz store not available';
+                document.getElementById('tag-contents').innerHTML = '❌ No tagged data found';
+            }
+        }
+
+        function clearAllTags() {
+            if (window.htmz && window.htmz.store) {
+                window.htmz.store.clearTaggedData();
+                refreshPerformanceMetrics();
+                console.log('🗑️ All tagged data cleared');
+            }
+        }
+
+        // Real-time simulation
+        function startRealtimeDemo() {
+            if (realtimeInterval) return;
+
+            realtimeCounter = 0;
+            const liveFeed = document.getElementById('live-feed');
+            const activeUsers = document.getElementById('active-users');
+            const apiCalls = document.getElementById('api-calls');
+            const dataTransferred = document.getElementById('data-transferred');
+
+            realtimeInterval = setInterval(() => {
+                realtimeCounter++;
+
+                // Update metrics
+                activeUsers.textContent = Math.floor(Math.random() * 1000) + 500;
+                apiCalls.textContent = realtimeCounter * 23;
+                dataTransferred.textContent = (realtimeCounter * 0.5).toFixed(1);
+
+                // Add live stream item
+                const streamItem = document.createElement('div');
+                streamItem.className = 'stream-item';
+                streamItem.innerHTML = `
+                    <strong>Event ${realtimeCounter}:</strong>
+                    User ${Math.floor(Math.random() * 1000)} performed action
+                    <small>(${new Date().toLocaleTimeString()})</small>
+                `;
+
+                // Simulate storing real-time data with tags
+                if (window.htmz && window.htmz.store) {
+                    window.htmz.store.storeTaggedData(`realtime_${realtimeCounter}`, {
+                        eventId: realtimeCounter,
+                        userId: Math.floor(Math.random() * 1000),
+                        timestamp: new Date().toISOString(),
+                        action: 'user_activity'
+                    });
+                }
+
+                liveFeed.prepend(streamItem);
+
+                // Keep only last 5 items
+                while (liveFeed.children.length > 5) {
+                    liveFeed.removeChild(liveFeed.lastChild);
+                }
+            }, 2000);
+
+            console.log('📡 Real-time demo started');
+        }
+
+        function stopRealtimeDemo() {
+            if (realtimeInterval) {
+                clearInterval(realtimeInterval);
+                realtimeInterval = null;
+                console.log('⏹️ Real-time demo stopped');
+            }
+        }
+
+        // Debug panel
+        function toggleDebugPanel() {
+            const panel = document.getElementById('debug-panel');
+            if (panel.classList.contains('show')) {
+                panel.classList.remove('show');
+            } else {
+                panel.classList.add('show');
+                updateDebugPanel();
+            }
+        }
+
+        function updateDebugPanel() {
+            const debugContent = document.getElementById('debug-content');
+            if (window.htmz && window.htmz.store) {
+                const stats = window.htmz.store.getStoreStats();
+                debugContent.innerHTML = `
+                    <div>Store Stats: ${JSON.stringify(stats, null, 2)}</div>
+                    <div>htmz Version: ${window.htmz.version}</div>
+                    <div>Active Elements: ${document.querySelectorAll('[data-hz-init]').length}</div>
+                    <div>Timestamp: ${new Date().toISOString()}</div>
+                `;
+            } else {
+                debugContent.innerHTML = 'htmz not loaded or store unavailable';
+            }
+        }
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🚀 htmz Showcase loaded');
+            refreshPerformanceMetrics();
+        });
+
+        document.addEventListener('hz:requestComplete', (e) => {
+            console.log('✅ Request completed:', e.detail);
+            updateDebugPanel();
+        });
+
+        document.addEventListener('hz:afterSwap', (e) => {
+            console.log('🔄 After swap:', e.detail);
+        });
+
+        document.addEventListener('hz:requestError', (e) => {
+            console.error('❌ Request error:', e.detail);
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-display';
+            errorDiv.innerHTML = `<strong>Error:</strong> ${e.detail.error.message}`;
+            document.body.appendChild(errorDiv);
+            setTimeout(() => errorDiv.remove(), 5000);
+        });
+
+        // Auto-refresh performance metrics every 10 seconds
+        setInterval(refreshPerformanceMetrics, 10000);
+    </script>
+</body>
+</html>

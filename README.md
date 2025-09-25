@@ -2,7 +2,7 @@
 
 > **Transform any JSON API into dynamic HTML with zero JavaScript coding**
 
-[![Version](https://img.shields.io/badge/version-1.1.7-blue.svg)](https://www.npmjs.com/package/@htmz/htmz)
+[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](https://www.npmjs.com/package/@htmz/htmz)
 [![License](https://img.shields.io/badge/license-GPL%20v3%2B-blue.svg)](LICENSE)
 [![Security](https://img.shields.io/badge/security-localhost%20%2B%20hmac-green.svg)](#-ultra-secure-by-design)
 

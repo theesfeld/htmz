@@ -12,7 +12,7 @@
 
 (function(global) {
 
-    const HTMZ_VERSION = '1.0.0';
+    const HTMZ_VERSION = '1.2.0';
     const INITIALIZED_ATTR = 'data-hz-init';
 
     const htmz = {
@@ -48,6 +48,22 @@
         setupMutationObserver();
         setupGlobalErrorHandler();
         setupBeforeUnloadHandler();
+
+        // Ensure store is available for tagged data
+        if (typeof window !== 'undefined' && !window.htmz) {
+            window.htmz = {};
+        }
+        if (typeof window !== 'undefined' && !window.htmz.store && typeof storeTaggedData === 'function') {
+            window.htmz.store = {
+                storeTaggedData,
+                getTaggedData,
+                getTaggedMetadata,
+                hasTaggedData,
+                clearTaggedData,
+                getAllTags,
+                getStoreStats
+            };
+        }
     }
 
     function initializeElements() {

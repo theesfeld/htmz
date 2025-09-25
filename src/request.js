@@ -91,7 +91,8 @@ async function makeProxyRequest(method, url, data, config = {}) {
             url: url,
             method: method.toUpperCase(),
             headers: config.headers || {},
-            body: data
+            body: data,
+            tag: config.tag || null
         };
 
         const signature = await computeHMAC(proxyPayload, secret);
@@ -162,6 +163,11 @@ function handleProxyResponse(response) {
             error.metadata = proxyData.metadata;
             error.type = proxyData.type;
             throw error;
+        }
+
+        // Store tagged data if tag is present in metadata
+        if (proxyData.metadata && proxyData.metadata.tag && window.htmz && window.htmz.store) {
+            window.htmz.store.storeTaggedData(proxyData.metadata.tag, proxyData.data, proxyData.metadata);
         }
 
         // Log metadata for debugging if enabled

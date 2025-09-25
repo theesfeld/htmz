@@ -177,6 +177,11 @@ function executeRequest(element, config, triggerEvent) {
         }
     }
 
+    // Handle batch requests
+    if (config.batch && Array.isArray(config.batch)) {
+        return executeBatchRequest(element, config, triggerEvent);
+    }
+
     showIndicator(element, config);
     addRequestClass(element);
 
@@ -198,7 +203,8 @@ function executeRequest(element, config, triggerEvent) {
 
     makeRequest(config.method, url, requestData, {
         headers: resolvedHeaders,
-        signal: controller.signal
+        signal: controller.signal,
+        tag: config.tag
     })
         .then(response => {
             markRequestEnd(element);
@@ -350,5 +356,86 @@ function addSettlingClass(element) {
         setTimeout(() => {
             element.classList.remove(htmz.config.settlingClass);
         }, htmz.config.defaultSettleDelay || 20);
+    }
+}
+
+async function executeBatchRequest(element, config, triggerEvent) {
+    showIndicator(element, config);
+    addRequestClass(element);
+
+    const controller = createAbortController();
+    markRequestStart(element, controller);
+
+    const data = serializeElement(element, config);
+
+    try {
+        const batchPromises = config.batch.map(async (batchItem) => {
+            const { tag, url } = batchItem;
+
+            // SECURITY: Resolve environment variables at runtime, not in DOM
+            const resolvedUrl = typeof resolveEnvVars === 'function'
+                ? resolveEnvVars(url)
+                : url;
+            const resolvedHeaders = config.headers && typeof resolveEnvVars === 'function'
+                ? resolveObjectEnvVars(config.headers)
+                : config.headers;
+
+            const finalUrl = config.method === 'GET' ? buildUrl(resolvedUrl, data) : resolvedUrl;
+            const requestData = config.method === 'GET' ? null : data;
+
+            return makeRequest(config.method || 'GET', finalUrl, requestData, {
+                headers: resolvedHeaders,
+                signal: controller.signal,
+                tag: tag
+            }).then(response => ({ tag, response }));
+        });
+
+        const batchResults = await Promise.all(batchPromises);
+
+        markRequestEnd(element);
+        hideIndicator(element, config);
+        removeRequestClass(element);
+
+        triggerCustomEvent(element, 'hz:beforeSwap', {
+            responses: batchResults.map(r => r.response),
+            config,
+            triggerEvent
+        });
+
+        if (config.template) {
+            // For batch requests, we pass the last response as the main data for backward compatibility
+            const lastResponse = batchResults.length > 0 ? batchResults[batchResults.length - 1].response : {};
+
+            const html = renderTemplate(config.template, lastResponse);
+            const target = config.target || 'this';
+            const swappedElement = updateDOM(target, html, config.swap, element);
+
+            triggerCustomEvent(element, 'hz:afterSwap', {
+                responses: batchResults.map(r => r.response),
+                config,
+                triggerEvent,
+                swappedElement
+            });
+        }
+
+        triggerCustomEvent(element, 'hz:requestComplete', {
+            responses: batchResults.map(r => r.response),
+            config,
+            triggerEvent
+        });
+    } catch (error) {
+        markRequestEnd(element);
+        hideIndicator(element, config);
+        removeRequestClass(element);
+
+        triggerCustomEvent(element, 'hz:requestError', {
+            error,
+            config,
+            triggerEvent
+        });
+
+        if (htmz.config.logRequests) {
+            console.error('htmz: Batch request failed:', error);
+        }
     }
 }

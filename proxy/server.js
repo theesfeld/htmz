@@ -242,7 +242,7 @@ async function handleProxyRequest(req, res) {
                 return;
             }
 
-            const { url, method, headers = {}, body: requestBody } = requestData;
+            const { url, method, headers = {}, body: requestBody, tag } = requestData;
 
             if (!isEndpointAllowed(url)) {
                 console.log(`🚫 Endpoint not whitelisted: ${url}`);
@@ -309,6 +309,7 @@ async function handleProxyRequest(req, res) {
                             payloadSize: Buffer.byteLength(body, 'utf8'),
                             apiName: apiInfo?.name || 'unknown'
                         },
+                        tag: tag || null,
                         security: {
                             hmacVerified: true,
                             hmacAlgorithm: 'SHA-256',

@@ -3,346 +3,412 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>htmz - JSON-Powered HTML Library</title>
+    <title>htmz v1.2.0 - JSON-Powered HTML with Tagged APIs</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 2rem;
             line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
         }
 
-        .example {
-            border: 1px solid #e1e5e9;
-            border-radius: 6px;
-            margin: 2rem 0;
-            padding: 1.5rem;
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
         }
 
-        .example h3 {
-            margin-top: 0;
-            color: #0969da;
+        .header {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
         }
 
-        button {
-            background: #0969da;
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .new-features {
+            background: linear-gradient(135deg, #e6fffa 0%, #f0fff4 100%);
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            border-left: 5px solid #38b2ac;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        .new-features h3 {
+            color: #2d3748;
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .feature {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .feature strong {
+            color: #319795;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .demo-links {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .demo-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            text-align: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .demo-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+        }
+
+        .demo-card h3 {
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 1.3rem;
+        }
+
+        .demo-card p {
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+        }
+
+        .demo-link {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            margin: 4px;
+            text-decoration: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: transform 0.2s ease;
         }
 
-        button:hover {
-            background: #0860ca;
+        .demo-link:hover {
+            transform: translateY(-2px);
         }
 
-        input {
-            padding: 8px;
-            border: 1px solid #d1d9e0;
-            border-radius: 4px;
-            margin: 4px;
+        .quick-example {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            margin: 30px 0;
         }
 
-        .user-card {
-            border: 1px solid #d1d9e0;
-            border-radius: 4px;
-            padding: 1rem;
-            margin: 0.5rem 0;
-            background: #f6f8fa;
+        .quick-example h3 {
+            color: #2d3748;
+            margin-bottom: 20px;
+            font-size: 1.4rem;
         }
 
-        .todo-item {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem;
-            border-bottom: 1px solid #e1e5e9;
-        }
-
-        .todo-item:last-child {
-            border-bottom: none;
-        }
-
-        .todo-item.completed {
-            text-decoration: line-through;
-            opacity: 0.6;
-        }
-
-        .loading {
-            opacity: 0.5;
-            pointer-events: none;
-        }
-
-        .error {
-            color: #d1242f;
-            background: #fff8f8;
-            border: 1px solid #d1242f;
-            padding: 0.5rem;
-            border-radius: 4px;
+        .example-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            align-items: start;
         }
 
         pre {
-            background: #f6f8fa;
-            padding: 1rem;
-            border-radius: 4px;
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
             overflow-x: auto;
+            font-size: 0.9rem;
+            line-height: 1.5;
         }
 
-        #search-results {
-            min-height: 2rem;
+        .result-area {
+            background: #f7fafc;
+            border: 2px dashed #cbd5e0;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            min-height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .architecture {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            margin: 30px 0;
+        }
+
+        .architecture h3 {
+            color: #2d3748;
+            margin-bottom: 20px;
+            font-size: 1.4rem;
+        }
+
+        .arch-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .arch-item {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .arch-item h4 {
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+
+        .arch-item p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .example-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
-    <h1>htmz - JSON-Powered HTML Library</h1>
-    <p>htmz brings declarative JSON-powered interactions to HTML using simple attributes.</p>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 htmz v1.2.0</h1>
+            <p>Transform any JSON API into dynamic HTML with zero JavaScript coding</p>
+            <p><strong>Now with Tagged API Responses & Batch Requests!</strong></p>
+        </div>
 
-    <div class="example">
-        <h3>1. Simple Button Click</h3>
-        <p>Click the button to fetch user data and render it using a template:</p>
-
-        <button hz-post="/api/users"
-                hz-template="#user-template"
-                hz-target="#user-container">
-            Add User
-        </button>
-
-        <div id="user-container"></div>
-
-        <template id="user-template">
-            <div class="user-card">
-                <h4>{{name}}</h4>
-                <p>Email: {{email}}</p>
-                <p>ID: {{id}}</p>
-                <small>Joined: {{created_at}}</small>
-            </div>
-        </template>
-    </div>
-
-    <div class="example">
-        <h3>2. Live Search</h3>
-        <p>Type to search - results update as you type (debounced):</p>
-
-        <input type="text"
-               placeholder="Search users..."
-               hz-get="/api/search"
-               hz-template="#search-result-template"
-               hz-target="#search-results"
-               hz-trigger="input changed delay:300ms"
-               hz-params='{"type": "users"}'>
-
-        <div id="search-results"></div>
-
-        <template id="search-result-template">
-            {{#results}}
-            <div class="user-card">
-                <strong>{{name}}</strong> - {{email}}
-            </div>
-            {{/results}}
-            {{?results.length === 0}}
-            <p>No results found.</p>
-            {{/?}}
-        </template>
-    </div>
-
-    <div class="example">
-        <h3>3. Todo List with JSON</h3>
-        <p>Interactive todo list with add, toggle, and delete:</p>
-
-        <form hz-post="/api/todos"
-              hz-template="#todo-template"
-              hz-target="#todo-list"
-              hz-swap="append">
-            <input name="text" placeholder="New todo..." required>
-            <button type="submit">Add Todo</button>
-        </form>
-
-        <div id="todo-list">
-            <div hz-get="/api/todos"
-                 hz-template="#todos-list-template"
-                 hz-trigger="load">
+        <div class="new-features">
+            <h3>🎉 What's New in v1.2.0</h3>
+            <div class="features-grid">
+                <div class="feature">
+                    <strong>🏷️ Tagged API Responses</strong>
+                    <p>Load multiple APIs and reference them by name: <code>{{user1.name}}</code>, <code>{{weather.temp}}</code></p>
+                </div>
+                <div class="feature">
+                    <strong>⚡ Batch Requests</strong>
+                    <p>Load multiple APIs simultaneously: <code>hz-batch="user:/api/user,posts:/api/posts"</code></p>
+                </div>
+                <div class="feature">
+                    <strong>🔄 Cross-API Templates</strong>
+                    <p>Mix data from different APIs in one template with persistent tagged storage</p>
+                </div>
+                <div class="feature">
+                    <strong>📡 Real-time Ready</strong>
+                    <p>Built-in support for streaming updates and real-time data synchronization</p>
+                </div>
             </div>
         </div>
 
-        <template id="todo-template">
-            <div class="todo-item" data-id="{{id}}">
-                <input type="checkbox"
-                       {{?completed}}checked{{/?}}
-                       hz-patch="/api/todos/{{id}}"
-                       hz-template="#todo-template"
-                       hz-target="closest .todo-item"
-                       hz-swap="outerHTML">
-                <span class="{{?completed}}completed{{/?}}">{{text}}</span>
-                <button hz-delete="/api/todos/{{id}}"
-                        hz-target="closest .todo-item"
-                        hz-swap="delete"
-                        hz-confirm="Delete this todo?">
-                    Delete
-                </button>
+        <div class="demo-links">
+            <div class="demo-card">
+                <span class="icon">🎬</span>
+                <h3>Complete Showcase</h3>
+                <p>Full-featured demonstration of all htmz capabilities including tagged APIs, batch requests, and real-time updates</p>
+                <a href="showcase.html" class="demo-link">Launch Showcase</a>
             </div>
-        </template>
 
-        <template id="todos-list-template">
-            {{#todos}}
-            <div class="todo-item" data-id="{{id}}">
-                <input type="checkbox"
-                       {{?completed}}checked{{/?}}
-                       hz-patch="/api/todos/{{id}}"
-                       hz-template="#todo-template"
-                       hz-target="closest .todo-item"
-                       hz-swap="outerHTML">
-                <span class="{{?completed}}completed{{/?}}">{{text}}</span>
-                <button hz-delete="/api/todos/{{id}}"
-                        hz-target="closest .todo-item"
-                        hz-swap="delete"
-                        hz-confirm="Delete this todo?">
-                    Delete
-                </button>
+            <div class="demo-card">
+                <span class="icon">🏷️</span>
+                <h3>Tagging Demo</h3>
+                <p>Learn how to use tagged API responses to manage multiple data sources in your templates</p>
+                <a href="tagging-demo.html" class="demo-link">View Tagging Demo</a>
             </div>
-            {{/todos}}
-        </template>
+
+            <div class="demo-card">
+                <span class="icon">📡</span>
+                <h3>Streaming Demo</h3>
+                <p>Real-time data streams, WebSocket simulation, and performance monitoring with tagged storage</p>
+                <a href="streaming-demo.html" class="demo-link">Try Streaming</a>
+            </div>
+
+            <div class="demo-card">
+                <span class="icon">⚡</span>
+                <h3>Enhanced Demo</h3>
+                <p>Advanced examples showing cross-API integration, dynamic content, and performance tools</p>
+                <a href="enhanced-demo.html" class="demo-link">Enhanced Examples</a>
+            </div>
+
+            <div class="demo-card">
+                <span class="icon">🎮</span>
+                <h3>Playground</h3>
+                <p>Interactive environment to experiment with htmz features and test your own API integrations</p>
+                <a href="playground.html" class="demo-link">Open Playground</a>
+            </div>
+
+            <div class="demo-card">
+                <span class="icon">🔧</span>
+                <h3>Simple Demo</h3>
+                <p>Basic examples perfect for learning the fundamentals of htmz and getting started quickly</p>
+                <a href="simple-demo.html" class="demo-link">Simple Examples</a>
+            </div>
+        </div>
+
+        <div class="quick-example">
+            <h3>⚡ Quick Example - Tagged API Comparison</h3>
+            <div class="example-grid">
+                <div>
+                    <pre><code>&lt;!-- Load two users with tags --&gt;
+&lt;button hz-get="{{GITHUB_API}}/users/octocat"
+        hz-tag="user1"
+        hz-template="#user-template"
+        hz-target="#user1-slot"&gt;
+  Load User 1
+&lt;/button&gt;
+
+&lt;button hz-get="{{GITHUB_API}}/users/torvalds"
+        hz-tag="user2"
+        hz-template="#user-template"
+        hz-target="#user2-slot"&gt;
+  Load User 2
+&lt;/button&gt;
+
+&lt;!-- Compare using tagged data --&gt;
+&lt;button hz-template="#comparison-template"
+        hz-target="#comparison"&gt;
+  Compare Users
+&lt;/button&gt;
+
+&lt;div id="user1-slot"&gt;&lt;/div&gt;
+&lt;div id="user2-slot"&gt;&lt;/div&gt;
+&lt;div id="comparison"&gt;&lt;/div&gt;
+
+&lt;template id="user-template"&gt;
+  &lt;div class="user-card"&gt;
+    &lt;h3&gt;{{name}}&lt;/h3&gt;
+    &lt;p&gt;{{followers}} followers&lt;/p&gt;
+  &lt;/div&gt;
+&lt;/template&gt;
+
+&lt;template id="comparison-template"&gt;
+  &lt;div class="comparison"&gt;
+    &lt;h3&gt;User Comparison&lt;/h3&gt;
+    &lt;p&gt;{{user1.name}}: {{user1.followers}} followers&lt;/p&gt;
+    &lt;p&gt;{{user2.name}}: {{user2.followers}} followers&lt;/p&gt;
+    {{?user1.followers > user2.followers}}
+      &lt;p&gt;🏆 {{user1.name}} has more followers!&lt;/p&gt;
+    {{/?}}
+    {{?user2.followers > user1.followers}}
+      &lt;p&gt;🏆 {{user2.name}} has more followers!&lt;/p&gt;
+    {{/?}}
+  &lt;/div&gt;
+&lt;/template&gt;</code></pre>
+                </div>
+                <div>
+                    <div class="result-area">
+                        <div>
+                            <strong>🚀 Live Result</strong><br>
+                            Click the showcase links above to see this example in action!<br><br>
+                            <em>Tagged APIs enable powerful data comparisons and real-time updates</em>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="architecture">
+            <h3>🏗️ Architecture Overview</h3>
+            <div class="arch-grid">
+                <div class="arch-item">
+                    <h4>🏷️ Tagged Data Store</h4>
+                    <p>Persistent client-side storage for API responses with named tags for cross-template access</p>
+                </div>
+                <div class="arch-item">
+                    <h4>🔐 TOML Proxy Server</h4>
+                    <p>Secure localhost-only proxy with HMAC authentication and endpoint whitelisting</p>
+                </div>
+                <div class="arch-item">
+                    <h4>📝 Enhanced Templates</h4>
+                    <p>Support for tagged variable access, batch data processing, and conditional rendering</p>
+                </div>
+                <div class="arch-item">
+                    <h4>⚡ Batch Processing</h4>
+                    <p>Simultaneous API requests with coordinated response handling and error management</p>
+                </div>
+                <div class="arch-item">
+                    <h4>📡 Real-time Support</h4>
+                    <p>Built-in streaming capabilities with persistent tagged data for live updates</p>
+                </div>
+                <div class="arch-item">
+                    <h4>🛡️ Security First</h4>
+                    <p>HMAC-SHA256 request signing, localhost binding, and credential isolation</p>
+                </div>
+            </div>
+        </div>
+
+        <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.1); text-align: center;">
+            <h3 style="color: #2d3748; margin-bottom: 15px;">🚀 Ready to Get Started?</h3>
+            <p style="color: #666; margin-bottom: 20px;">Choose your path to explore htmz v1.2.0</p>
+            <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+                <a href="showcase.html" class="demo-link">🎬 Full Showcase</a>
+                <a href="tagging-demo.html" class="demo-link">🏷️ Learn Tagging</a>
+                <a href="streaming-demo.html" class="demo-link">📡 Real-time Demo</a>
+            </div>
+        </div>
     </div>
-
-    <div class="example">
-        <h3>4. Form Submission</h3>
-        <p>Submit form data as JSON and update UI:</p>
-
-        <form hz-post="/api/contact"
-              hz-template="#form-response-template"
-              hz-target="#form-result">
-            <div>
-                <input name="name" placeholder="Your name" required>
-            </div>
-            <div>
-                <input name="email" type="email" placeholder="Your email" required>
-            </div>
-            <div>
-                <textarea name="message" placeholder="Your message" required></textarea>
-            </div>
-            <button type="submit">Send Message</button>
-        </form>
-
-        <div id="form-result"></div>
-
-        <template id="form-response-template">
-            {{?success}}
-            <div class="success">
-                <h4>Message sent!</h4>
-                <p>Thanks {{name}}, we'll get back to you at {{email}}.</p>
-            </div>
-            {{/?}}
-            {{?error}}
-            <div class="error">
-                <h4>Error</h4>
-                <p>{{error}}</p>
-            </div>
-            {{/?}}
-        </template>
-    </div>
-
-    <div class="example">
-        <h3>5. Loading States & Indicators</h3>
-        <p>Show loading indicators during requests:</p>
-
-        <button hz-get="/api/slow-endpoint"
-                hz-template="#loading-result-template"
-                hz-target="#loading-result"
-                hz-indicator="#loading-spinner">
-            Slow Request (3s)
-        </button>
-
-        <div id="loading-spinner" hidden>⏳ Loading...</div>
-        <div id="loading-result"></div>
-
-        <template id="loading-result-template">
-            <div class="user-card">
-                <h4>Slow operation completed!</h4>
-                <p>Response received at {{timestamp}}</p>
-            </div>
-        </template>
-    </div>
-
-    <div class="example">
-        <h3>Mock API Responses</h3>
-        <p>Since this is a demo, here are the JSON responses the API would return:</p>
-
-        <pre><code>POST /api/users → {
-  "id": 123,
-  "name": "John Doe",
-  "email": "john@example.com",
-  "created_at": "2025-01-15"
-}
-
-GET /api/search?q=john → {
-  "results": [
-    {"name": "John Doe", "email": "john@example.com"},
-    {"name": "Jane Johnson", "email": "jane@example.com"}
-  ]
-}
-
-GET /api/todos → {
-  "todos": [
-    {"id": 1, "text": "Learn htmz", "completed": false},
-    {"id": 2, "text": "Build awesome apps", "completed": false}
-  ]
-}</code></pre>
-    </div>
-
-    <script src="htmz.js"></script>
-
-    <script>
-        // Mock API for demo purposes
-        const mockResponses = {
-            '/api/users': {
-                id: Math.floor(Math.random() * 1000),
-                name: 'User ' + Math.floor(Math.random() * 100),
-                email: `user${Math.floor(Math.random() * 100)}@example.com`,
-                created_at: new Date().toISOString().split('T')[0]
-            },
-            '/api/search': {
-                results: [
-                    { name: 'John Doe', email: 'john@example.com' },
-                    { name: 'Jane Smith', email: 'jane@example.com' }
-                ]
-            },
-            '/api/todos': {
-                todos: [
-                    { id: 1, text: 'Learn htmz', completed: false },
-                    { id: 2, text: 'Build awesome apps', completed: true }
-                ]
-            },
-            '/api/contact': {
-                success: true,
-                name: 'Test User',
-                email: 'test@example.com'
-            },
-            '/api/slow-endpoint': {
-                timestamp: new Date().toISOString()
-            }
-        };
-
-        // Mock fetch for demo
-        const originalFetch = window.fetch;
-        window.fetch = async (url, options = {}) => {
-            await new Promise(resolve => setTimeout(resolve,
-                url.includes('slow-endpoint') ? 3000 : 300));
-
-            const mockData = mockResponses[url.split('?')[0]] || { error: 'Not found' };
-
-            return {
-                ok: true,
-                status: 200,
-                json: () => Promise.resolve(mockData),
-                text: () => Promise.resolve(JSON.stringify(mockData)),
-                headers: { get: () => 'application/json' }
-            };
-        };
-
-        // Enable request logging
-        htmz.logRequests(true);
-    </script>
 </body>
 </html>

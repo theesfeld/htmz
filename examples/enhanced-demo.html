@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>htmz v1.2.0 - Enhanced Demo with Tagging</title>
+    <script src="../dist/htmz.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            line-height: 1.6;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+
+        .header {
+            text-align: center;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+        }
+
+        .demo-section {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease;
+        }
+
+        .demo-section:hover {
+            transform: translateY(-2px);
+        }
+
+        .demo-section h2 {
+            color: #2d3748;
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .demo-section .subtitle {
+            color: #718096;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        button.secondary {
+            background: #4a5568;
+        }
+
+        button.success {
+            background: #38b2ac;
+        }
+
+        input {
+            padding: 10px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            margin: 5px;
+            transition: border-color 0.2s ease;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .result-box {
+            background: #f7fafc;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            border-left: 4px solid #667eea;
+            min-height: 50px;
+        }
+
+        .user-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .user-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            border: 1px solid #e9ecef;
+        }
+
+        .user-card img {
+            border-radius: 50%;
+            margin-bottom: 10px;
+        }
+
+        .batch-result {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .stats-row {
+            display: flex;
+            justify-content: space-around;
+            margin: 15px 0;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .stat {
+            text-align: center;
+            padding: 10px 15px;
+            background: #f0f4f8;
+            border-radius: 6px;
+            min-width: 80px;
+        }
+
+        .stat h3 {
+            margin: 0;
+            color: #2b6cb0;
+            font-size: 1.5rem;
+        }
+
+        .stat p {
+            margin: 5px 0 0 0;
+            color: #4a5568;
+            font-size: 0.85rem;
+        }
+
+        .repo-item {
+            background: #f8f9fa;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 6px;
+            border-left: 3px solid #38b2ac;
+        }
+
+        .loading-indicator {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .hz-request .loading-indicator {
+            display: inline-block;
+        }
+
+        .hz-request button {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        .debug-info {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.8rem;
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .success-message {
+            background: #c6f6d5;
+            color: #22543d;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            border: 1px solid #9ae6b4;
+        }
+
+        .error-message {
+            background: #fed7d7;
+            color: #c53030;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            border: 1px solid #feb2b2;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 htmz v1.2.0 Enhanced Demo</h1>
+        <p>Showcasing <strong>Tagged API Responses</strong>, <strong>Batch Requests</strong>, and <strong>Cross-API Integration</strong></p>
+        <p><a href="showcase.html">🎬 Full Showcase</a> | <a href="tagging-demo.html">🏷️ Tagging Demo</a></p>
+    </div>
+
+    <div class="demo-grid">
+        <!-- Tagged User Comparison -->
+        <div class="demo-section">
+            <h2>🏷️ Tagged User Comparison</h2>
+            <div class="subtitle">Load different GitHub users with tags, then compare them</div>
+
+            <button hz-get="{{GITHUB_API}}/users/octocat"
+                    hz-tag="demo_user1"
+                    hz-template="#user-display-template"
+                    hz-target="#user1-display">
+                Load octocat
+            </button>
+
+            <button hz-get="{{GITHUB_API}}/users/torvalds"
+                    hz-tag="demo_user2"
+                    hz-template="#user-display-template"
+                    hz-target="#user2-display">
+                Load torvalds
+            </button>
+
+            <button hz-get="{{GITHUB_API}}/users/gaearon"
+                    hz-tag="demo_user3"
+                    hz-template="#user-display-template"
+                    hz-target="#user3-display">
+                Load gaearon
+            </button>
+
+            <div class="user-comparison">
+                <div id="user1-display" class="result-box"></div>
+                <div id="user2-display" class="result-box"></div>
+            </div>
+            <div id="user3-display" class="result-box"></div>
+
+            <button class="success"
+                    hz-template="#three-user-comparison-template"
+                    hz-target="#comparison-result">
+                🔄 Compare All Users
+            </button>
+
+            <div id="comparison-result"></div>
+        </div>
+
+        <!-- Batch GitHub Dashboard -->
+        <div class="demo-section">
+            <h2>📊 Batch GitHub Dashboard</h2>
+            <div class="subtitle">Load user profile, repositories, and followers in one request</div>
+
+            <select id="github-user-select">
+                <option value="microsoft">Microsoft</option>
+                <option value="google">Google</option>
+                <option value="facebook">Facebook</option>
+                <option value="netflix">Netflix</option>
+                <option value="airbnb">Airbnb</option>
+            </select>
+
+            <button onclick="loadGitHubDashboard()">
+                📈 Load Complete Dashboard
+            </button>
+
+            <div id="github-dashboard" class="result-box"></div>
+        </div>
+
+        <!-- Multi-API Integration -->
+        <div class="demo-section">
+            <h2>🌐 Multi-API Integration</h2>
+            <div class="subtitle">Combine data from different APIs using tagged responses</div>
+
+            <button hz-get="{{GITHUB_API}}/users/nodejs"
+                    hz-tag="org_profile"
+                    hz-template="#org-profile-template"
+                    hz-target="#org-display">
+                Load Organization
+            </button>
+
+            <button hz-get="{{QUOTE_API}}/random"
+                    hz-tag="daily_quote"
+                    hz-template="#quote-template"
+                    hz-target="#quote-display">
+                Get Daily Quote
+            </button>
+
+            <button hz-get="{{JOKE_API}}/random_joke"
+                    hz-tag="daily_joke"
+                    hz-template="#joke-template"
+                    hz-target="#joke-display">
+                Get Random Joke
+            </button>
+
+            <div class="result-box" id="org-display"></div>
+            <div class="result-box" id="quote-display"></div>
+            <div class="result-box" id="joke-display"></div>
+
+            <button class="success"
+                    hz-template="#mixed-content-template"
+                    hz-target="#mixed-content-result">
+                🎭 Combine All Content
+            </button>
+
+            <div id="mixed-content-result"></div>
+        </div>
+
+        <!-- Dynamic Search with Tags -->
+        <div class="demo-section">
+            <h2>🔍 Dynamic Tagged Search</h2>
+            <div class="subtitle">Search different categories and keep results in separate tags</div>
+
+            <button hz-get="{{GITHUB_API}}/search/repositories?q=javascript&sort=stars&per_page=3"
+                    hz-tag="js_search"
+                    hz-template="#search-results-template"
+                    hz-target="#js-results">
+                Search JavaScript
+            </button>
+
+            <button hz-get="{{GITHUB_API}}/search/repositories?q=python&sort=stars&per_page=3"
+                    hz-tag="python_search"
+                    hz-template="#search-results-template"
+                    hz-target="#python-results">
+                Search Python
+            </button>
+
+            <button hz-get="{{GITHUB_API}}/search/repositories?q=rust&sort=stars&per_page=3"
+                    hz-tag="rust_search"
+                    hz-template="#search-results-template"
+                    hz-target="#rust-results">
+                Search Rust
+            </button>
+
+            <div class="result-box" id="js-results"></div>
+            <div class="result-box" id="python-results"></div>
+            <div class="result-box" id="rust-results"></div>
+
+            <button class="success"
+                    hz-template="#language-comparison-template"
+                    hz-target="#language-comparison">
+                📊 Compare Languages
+            </button>
+
+            <div id="language-comparison"></div>
+        </div>
+
+        <!-- Real-time Simulation -->
+        <div class="demo-section">
+            <h2>📡 Simulated Real-time Data</h2>
+            <div class="subtitle">Simulate streaming updates with persistent tagged data</div>
+
+            <button onclick="startDataStream()">🔴 Start Stream</button>
+            <button onclick="stopDataStream()">⏹️ Stop Stream</button>
+            <button onclick="clearStreamData()">🗑️ Clear Data</button>
+
+            <div class="stats-row">
+                <div class="stat">
+                    <h3 id="stream-events">0</h3>
+                    <p>Events</p>
+                </div>
+                <div class="stat">
+                    <h3 id="stream-tags">0</h3>
+                    <p>Tags</p>
+                </div>
+                <div class="stat">
+                    <h3 id="stream-memory">0</h3>
+                    <p>KB Memory</p>
+                </div>
+            </div>
+
+            <div id="stream-log" class="result-box" style="height: 150px; overflow-y: auto;"></div>
+        </div>
+
+        <!-- Debug Panel -->
+        <div class="demo-section">
+            <h2>🐛 Tagged Data Debug Panel</h2>
+            <div class="subtitle">Monitor the tagged data store and performance metrics</div>
+
+            <button onclick="refreshDebugInfo()">🔄 Refresh Debug Info</button>
+            <button onclick="exportTaggedData()">💾 Export Data</button>
+            <button onclick="clearAllTaggedData()">🗑️ Clear All Tags</button>
+
+            <div id="debug-display" class="debug-info">
+                Click "Refresh Debug Info" to see tagged data store statistics...
+            </div>
+        </div>
+    </div>
+
+    <!-- Templates -->
+    <template id="user-display-template">
+        <div class="user-card">
+            <img src="{{avatar_url}}" width="50" alt="{{name}}">
+            <h4>{{name}}</h4>
+            <p>@{{login}}</p>
+            <div class="stats-row">
+                <div class="stat">
+                    <h3>{{followers}}</h3>
+                    <p>Followers</p>
+                </div>
+                <div class="stat">
+                    <h3>{{public_repos}}</h3>
+                    <p>Repos</p>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <template id="three-user-comparison-template">
+        <div class="batch-result">
+            <h3>👥 Three-Way User Comparison</h3>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+                <div style="text-align: center; padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                    <img src="{{demo_user1.avatar_url}}" width="40" style="border-radius: 50%;">
+                    <h4>{{demo_user1.name}}</h4>
+                    <p>{{demo_user1.followers}} followers</p>
+                    <p>{{demo_user1.public_repos}} repos</p>
+                </div>
+                <div style="text-align: center; padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                    <img src="{{demo_user2.avatar_url}}" width="40" style="border-radius: 50%;">
+                    <h4>{{demo_user2.name}}</h4>
+                    <p>{{demo_user2.followers}} followers</p>
+                    <p>{{demo_user2.public_repos}} repos</p>
+                </div>
+                <div style="text-align: center; padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                    <img src="{{demo_user3.avatar_url}}" width="40" style="border-radius: 50%;">
+                    <h4>{{demo_user3.name}}</h4>
+                    <p>{{demo_user3.followers}} followers</p>
+                    <p>{{demo_user3.public_repos}} repos</p>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <template id="github-dashboard-template">
+        <div class="batch-result">
+            <h3>📊 {{profile.name}} Dashboard</h3>
+            <p>{{profile.bio}}</p>
+            <div class="stats-row">
+                <div class="stat">
+                    <h3>{{repos.length}}</h3>
+                    <p>Repos</p>
+                </div>
+                <div class="stat">
+                    <h3>{{profile.followers}}</h3>
+                    <p>Followers</p>
+                </div>
+                <div class="stat">
+                    <h3>{{followers.length}}</h3>
+                    <p>Following</p>
+                </div>
+            </div>
+            <h4>🌟 Top Repositories</h4>
+            {{#repos}}
+                {{?@index < 5}}
+                <div class="repo-item">
+                    <strong>{{name}}</strong> - {{description}}
+                    <br><small>⭐ {{stargazers_count}} stars • {{language}}</small>
+                </div>
+                {{/?}}
+            {{/repos}}
+        </div>
+    </template>
+
+    <template id="org-profile-template">
+        <div>
+            <h4>🏢 {{name}}</h4>
+            <img src="{{avatar_url}}" width="50" alt="{{name}}" style="border-radius: 8px;">
+            <p>{{bio}}</p>
+            <p><strong>{{public_repos}}</strong> public repositories</p>
+        </div>
+    </template>
+
+    <template id="quote-template">
+        <div>
+            <h4>💭 Daily Inspiration</h4>
+            <blockquote style="font-style: italic; border-left: 3px solid #38b2ac; padding-left: 15px; margin: 10px 0;">
+                "{{content}}"
+            </blockquote>
+            <p><small>— {{author}}</small></p>
+        </div>
+    </template>
+
+    <template id="joke-template">
+        <div>
+            <h4>😂 Random Joke</h4>
+            <p><strong>{{setup}}</strong></p>
+            <p style="color: #38b2ac; font-weight: 500;">{{punchline}}</p>
+        </div>
+    </template>
+
+    <template id="mixed-content-template">
+        <div class="batch-result">
+            <h3>🎭 Mixed Content Dashboard</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                    <h4>🏢 {{org_profile.name}}</h4>
+                    <p>{{org_profile.public_repos}} repositories</p>
+                </div>
+                <div style="background: #f0f9ff; padding: 15px; border-radius: 8px;">
+                    <h4>💭 Quote of the Day</h4>
+                    <p style="font-style: italic;">"{{daily_quote.content}}"</p>
+                    <small>— {{daily_quote.author}}</small>
+                </div>
+                <div style="background: #f0fff4; padding: 15px; border-radius: 8px;">
+                    <h4>😂 Daily Humor</h4>
+                    <p><strong>{{daily_joke.setup}}</strong></p>
+                    <p style="color: #38a169;">{{daily_joke.punchline}}</p>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <template id="search-results-template">
+        <div>
+            <h4>📦 Search Results ({{total_count}} total)</h4>
+            {{#items}}
+                {{?@index < 3}}
+                <div class="repo-item">
+                    <strong>{{name}}</strong><br>
+                    <small>⭐ {{stargazers_count}} stars • {{language}} • {{owner.login}}</small>
+                </div>
+                {{/?}}
+            {{/items}}
+        </div>
+    </template>
+
+    <template id="language-comparison-template">
+        <div class="batch-result">
+            <h3>📊 Programming Language Comparison</h3>
+            <div class="stats-row">
+                <div class="stat">
+                    <h3>{{js_search.total_count}}</h3>
+                    <p>JavaScript repos</p>
+                </div>
+                <div class="stat">
+                    <h3>{{python_search.total_count}}</h3>
+                    <p>Python repos</p>
+                </div>
+                <div class="stat">
+                    <h3>{{rust_search.total_count}}</h3>
+                    <p>Rust repos</p>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <script>
+        // Enhanced demo JavaScript
+        let streamInterval;
+        let streamEventCount = 0;
+
+        function loadGitHubDashboard() {
+            const selectedUser = document.getElementById('github-user-select').value;
+
+            // Use htmz.ajax with batch-like manual approach
+            const batchUrls = [
+                `{{GITHUB_API}}/orgs/${selectedUser}`,
+                `{{GITHUB_API}}/orgs/${selectedUser}/repos?per_page=10&sort=stars`,
+                `{{GITHUB_API}}/orgs/${selectedUser}/members?per_page=10`
+            ];
+
+            const batchPromises = batchUrls.map((url, index) => {
+                const tags = ['profile', 'repos', 'followers'];
+                return htmz.get(url, { tag: tags[index] });
+            });
+
+            Promise.all(batchPromises)
+                .then(() => {
+                    // Render the dashboard template
+                    htmz.render('#github-dashboard-template', {}, '#github-dashboard');
+                })
+                .catch(error => {
+                    console.error('Dashboard load failed:', error);
+                    document.getElementById('github-dashboard').innerHTML =
+                        '<div class="error-message">Failed to load dashboard data</div>';
+                });
+        }
+
+        function startDataStream() {
+            if (streamInterval) return;
+
+            streamEventCount = 0;
+            const streamLog = document.getElementById('stream-log');
+
+            streamInterval = setInterval(() => {
+                streamEventCount++;
+
+                // Create simulated stream data
+                const streamData = {
+                    eventId: streamEventCount,
+                    timestamp: new Date().toISOString(),
+                    userId: Math.floor(Math.random() * 1000),
+                    action: ['login', 'logout', 'view_page', 'click_button', 'submit_form'][Math.floor(Math.random() * 5)],
+                    value: Math.floor(Math.random() * 100)
+                };
+
+                // Store in tagged data store
+                if (window.htmz && window.htmz.store) {
+                    window.htmz.store.storeTaggedData(`stream_event_${streamEventCount}`, streamData);
+                }
+
+                // Update UI
+                const eventDiv = document.createElement('div');
+                eventDiv.innerHTML = `
+                    <strong>Event ${streamEventCount}:</strong> User ${streamData.userId}
+                    performed ${streamData.action} (value: ${streamData.value})
+                    <small style="float: right;">${new Date().toLocaleTimeString()}</small>
+                `;
+                eventDiv.style.cssText = 'padding: 5px; margin: 2px 0; background: #e6fffa; border-radius: 4px; font-size: 0.85rem;';
+
+                streamLog.insertBefore(eventDiv, streamLog.firstChild);
+
+                // Keep only last 10 events in display
+                while (streamLog.children.length > 10) {
+                    streamLog.removeChild(streamLog.lastChild);
+                }
+
+                // Update metrics
+                updateStreamMetrics();
+            }, 1500);
+        }
+
+        function stopDataStream() {
+            if (streamInterval) {
+                clearInterval(streamInterval);
+                streamInterval = null;
+            }
+        }
+
+        function clearStreamData() {
+            // Clear stream-related tags
+            if (window.htmz && window.htmz.store) {
+                const stats = window.htmz.store.getStoreStats();
+                stats.tags.forEach(tag => {
+                    if (tag.startsWith('stream_event_')) {
+                        window.htmz.store.clearTaggedData(tag);
+                    }
+                });
+            }
+
+            document.getElementById('stream-log').innerHTML = '';
+            streamEventCount = 0;
+            updateStreamMetrics();
+        }
+
+        function updateStreamMetrics() {
+            if (window.htmz && window.htmz.store) {
+                const stats = window.htmz.store.getStoreStats();
+                const streamTags = stats.tags.filter(tag => tag.startsWith('stream_event_')).length;
+
+                document.getElementById('stream-events').textContent = streamEventCount;
+                document.getElementById('stream-tags').textContent = streamTags;
+                document.getElementById('stream-memory').textContent = Math.round(stats.memoryUsage / 1024);
+            }
+        }
+
+        function refreshDebugInfo() {
+            const debugDisplay = document.getElementById('debug-display');
+
+            if (window.htmz && window.htmz.store) {
+                const stats = window.htmz.store.getStoreStats();
+                let debugInfo = `
+🏷️ Tagged Data Store Statistics
+================================
+Total Tags: ${stats.totalTags}
+Memory Usage: ${(stats.memoryUsage / 1024).toFixed(2)} KB
+Last Updated: ${new Date().toLocaleTimeString()}
+
+📋 Active Tags:
+${stats.tags.length ? stats.tags.map(tag => `  • ${tag}`).join('\n') : '  (none)'}
+
+🔍 Tag Details:
+`;
+
+                stats.tags.forEach(tag => {
+                    const data = window.htmz.store.getTaggedData(tag);
+                    const preview = JSON.stringify(data, null, 2).substring(0, 100);
+                    debugInfo += `\n${tag}:\n${preview}${preview.length >= 100 ? '...' : ''}\n`;
+                });
+
+                debugDisplay.textContent = debugInfo;
+            } else {
+                debugDisplay.textContent = '❌ htmz store not available\nMake sure htmz is properly loaded.';
+            }
+        }
+
+        function exportTaggedData() {
+            if (window.htmz && window.htmz.store) {
+                const stats = window.htmz.store.getStoreStats();
+                const exportData = {};
+
+                stats.tags.forEach(tag => {
+                    exportData[tag] = window.htmz.store.getTaggedData(tag);
+                });
+
+                const dataStr = JSON.stringify(exportData, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(dataBlob);
+
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `htmz-tagged-data-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+
+                console.log('📥 Tagged data exported successfully');
+            }
+        }
+
+        function clearAllTaggedData() {
+            if (window.htmz && window.htmz.store) {
+                window.htmz.store.clearTaggedData();
+                refreshDebugInfo();
+                updateStreamMetrics();
+
+                // Show success message
+                const successDiv = document.createElement('div');
+                successDiv.className = 'success-message';
+                successDiv.textContent = '✅ All tagged data cleared successfully';
+                document.body.appendChild(successDiv);
+                setTimeout(() => successDiv.remove(), 3000);
+            }
+        }
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🚀 Enhanced htmz demo loaded');
+            refreshDebugInfo();
+        });
+
+        document.addEventListener('hz:requestComplete', (e) => {
+            console.log('✅ Request completed:', e.detail);
+            refreshDebugInfo();
+        });
+
+        document.addEventListener('hz:afterSwap', (e) => {
+            console.log('🔄 After swap:', e.detail);
+        });
+
+        document.addEventListener('hz:requestError', (e) => {
+            console.error('❌ Request error:', e.detail);
+
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.innerHTML = `<strong>Request Error:</strong> ${e.detail.error.message}`;
+            document.body.appendChild(errorDiv);
+            setTimeout(() => errorDiv.remove(), 5000);
+        });
+
+        // Auto-update debug info every 15 seconds
+        setInterval(() => {
+            if (document.getElementById('debug-display').textContent !== 'Click "Refresh Debug Info" to see tagged data store statistics...') {
+                refreshDebugInfo();
+            }
+        }, 15000);
+    </script>
+</body>
+</html>

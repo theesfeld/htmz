@@ -15,7 +15,8 @@ const HZ_ATTRIBUTES = [
     'hz-template', 'hz-target', 'hz-swap', 'hz-trigger',
     'hz-params', 'hz-headers', 'hz-include', 'hz-confirm',
     'hz-indicator', 'hz-sync', 'hz-swap-oob', 'hz-push-url',
-    'hz-select', 'hz-select-oob', 'hz-preserve'
+    'hz-select', 'hz-select-oob', 'hz-preserve',
+    'hz-tag', 'hz-batch'
 ];
 
 function parseAttributes(element) {
@@ -36,7 +37,9 @@ function parseAttributes(element) {
         pushUrl: null,
         select: null,
         selectOob: null,
-        preserve: null
+        preserve: null,
+        tag: null,
+        batch: null
     };
 
     for (const attr of HZ_ATTRIBUTES) {
@@ -97,6 +100,14 @@ function parseAttributes(element) {
 
             case 'preserve':
                 config.preserve = value;
+                break;
+
+            case 'tag':
+                config.tag = value;
+                break;
+
+            case 'batch':
+                config.batch = parseBatch(value);
                 break;
 
             default:
@@ -219,6 +230,28 @@ function parseSimpleHeaders(headersStr) {
 
     return headers;
 }
+
+function parseBatch(batchStr) {
+    const batchRequests = [];
+    const pairs = batchStr.split(',');
+
+    for (const pair of pairs) {
+        const trimmedPair = pair.trim();
+        const colonIndex = trimmedPair.indexOf(':');
+
+        if (colonIndex > 0) {
+            const tag = trimmedPair.substring(0, colonIndex).trim();
+            const url = trimmedPair.substring(colonIndex + 1).trim();
+
+            if (tag && url) {
+                batchRequests.push({ tag, url });
+            }
+        }
+    }
+
+    return batchRequests.length > 0 ? batchRequests : null;
+}
+
 
 function findElementsWithAttributes() {
     const selector = HZ_ATTRIBUTES.map(attr => `[${attr}]`).join(',');

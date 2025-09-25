@@ -14,6 +14,7 @@ SOURCES = $(SRC_DIR)/utils.js \
           $(SRC_DIR)/dom.js \
           $(SRC_DIR)/event.js \
           $(SRC_DIR)/env.js \
+          $(SRC_DIR)/store.js \
           $(SRC_DIR)/htmz.js
 
 # Build targets
@@ -40,8 +41,11 @@ dev: build
 	./bin/htmz dev
 
 test: build
-	@echo "Running htmz security test suite..."
+	@echo "Running htmz test suites..."
+	@echo "1. Security tests:"
 	node tests/security-test.js
+	@echo "\n2. Tagging system tests:"
+	node tests/tagging-test.js
 
 clean:
 	rm -rf $(DIST_DIR)
