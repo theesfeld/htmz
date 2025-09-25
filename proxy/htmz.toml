@@ -1,0 +1,154 @@
+# htmz Proxy Configuration
+# TOML format for clean, structured API endpoint configuration
+
+[proxy]
+version = "2.0.0"
+port = 3001
+host = "127.0.0.1"
+
+[proxy.security]
+hmac_enabled = true
+cors_enabled = false
+rate_limit_enabled = false
+
+# API Endpoints Configuration
+# Each table defines an API endpoint with authentication and metadata
+
+[apis.github]
+name = "GitHub API"
+endpoint = "https://api.github.com"
+auth_type = "none"
+# For authenticated GitHub: auth_type = "bearer", token = "ghp_your_token"
+
+[apis.jsonplaceholder]
+name = "JSONPlaceholder Test API"
+endpoint = "https://jsonplaceholder.typicode.com"
+auth_type = "none"
+
+[apis.httpbin]
+name = "HTTPBin Testing API"
+endpoint = "https://httpbin.org"
+auth_type = "none"
+
+[apis.reqres]
+name = "ReqRes Test API"
+endpoint = "https://reqres.in"
+auth_type = "none"
+
+[apis.coindesk]
+name = "CoinDesk Bitcoin API"
+endpoint = "https://api.coindesk.com"
+auth_type = "none"
+
+[apis.jsontest]
+name = "JSON Test Echo API"
+endpoint = "http://echo.jsontest.com"
+auth_type = "none"
+
+[apis.ipify]
+name = "IP Address Detection API"
+endpoint = "https://api.ipify.org"
+auth_type = "none"
+
+[apis.quotable]
+name = "Quotable Random Quotes API"
+endpoint = "https://api.quotable.io"
+auth_type = "none"
+
+[apis.advice]
+name = "Advice Slip API"
+endpoint = "https://api.adviceslip.com"
+auth_type = "none"
+
+[apis.jokes]
+name = "Official Joke API"
+endpoint = "https://official-joke-api.appspot.com"
+auth_type = "none"
+
+[apis.catfacts]
+name = "Cat Facts API"
+endpoint = "https://catfact.ninja"
+auth_type = "none"
+
+[apis.dog]
+name = "Dog CEO Dog API"
+endpoint = "https://dog.ceo"
+auth_type = "none"
+
+[apis.weather]
+name = "Open-Meteo Weather API"
+endpoint = "https://api.open-meteo.com"
+auth_type = "none"
+
+[apis.picsum]
+name = "Lorem Picsum Photo API"
+endpoint = "https://picsum.photos"
+auth_type = "none"
+
+# Examples of authenticated APIs (uncomment and configure):
+
+# [apis.openweather]
+# name = "OpenWeatherMap API"
+# endpoint = "https://api.openweathermap.org"
+# auth_type = "api_key"
+# key_param = "appid"
+# key = "your_openweather_api_key_here"
+# rate_limit = { requests = 1000, window = 3600 }
+
+# [apis.newsapi]
+# name = "News API"
+# endpoint = "https://newsapi.org"
+# auth_type = "api_header"
+# header_name = "X-API-Key"
+# key = "your_news_api_key_here"
+
+# [apis.stripe]
+# name = "Stripe API"
+# endpoint = "https://api.stripe.com"
+# auth_type = "bearer"
+# token = "sk_test_your_stripe_test_key_here"
+
+# [apis.twitter]
+# name = "Twitter API v2"
+# endpoint = "https://api.twitter.com"
+# auth_type = "bearer"
+# token = "your_twitter_bearer_token_here"
+# rate_limit = { requests = 300, window = 900 }
+
+# [apis.spotify]
+# name = "Spotify Web API"
+# endpoint = "https://api.spotify.com"
+# auth_type = "oauth2_client_credentials"
+# client_id = "your_spotify_client_id"
+# client_secret = "your_spotify_client_secret"
+
+# Template variables for easy frontend access
+[template_vars]
+GITHUB_API = "https://api.github.com"
+JSONPLACEHOLDER_API = "https://jsonplaceholder.typicode.com"
+HTTPBIN_API = "https://httpbin.org"
+REQRES_API = "https://reqres.in"
+COINDESK_API = "https://api.coindesk.com"
+JSONTEST_API = "http://echo.jsontest.com"
+IPIFY_API = "https://api.ipify.org"
+QUOTE_API = "https://api.quotable.io"
+ADVICE_API = "https://api.adviceslip.com"
+JOKE_API = "https://official-joke-api.appspot.com"
+CAT_FACTS_API = "https://catfact.ninja"
+DOG_API = "https://dog.ceo"
+WEATHER_API = "https://api.open-meteo.com"
+PLACEHOLDER_API = "https://picsum.photos"
+
+# Demo data for testing
+TEST_USER = "octocat"
+DEMO_POST_ID = "1"
+DEMO_USER_ID = "2"
+DEMO_ALBUM_ID = "3"
+
+# Authentication type reference:
+# - none: No authentication
+# - bearer: Authorization: Bearer <token>
+# - api_key: API key as URL parameter (?key=value)
+# - api_header: API key as HTTP header
+# - basic: HTTP Basic authentication (username:password)
+# - oauth2_client_credentials: OAuth2 client credentials flow

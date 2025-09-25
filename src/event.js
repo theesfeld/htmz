@@ -178,6 +178,7 @@ function executeRequest(element, config, triggerEvent) {
     }
 
     showIndicator(element, config);
+    addRequestClass(element);
 
     const controller = createAbortController();
     markRequestStart(element, controller);
@@ -202,11 +203,31 @@ function executeRequest(element, config, triggerEvent) {
         .then(response => {
             markRequestEnd(element);
             hideIndicator(element, config);
+            removeRequestClass(element);
+
+            triggerCustomEvent(element, 'hz:beforeSwap', {
+                response,
+                config,
+                triggerEvent
+            });
 
             if (config.template) {
                 const html = renderTemplate(config.template, response);
                 const target = config.target || 'this';
-                updateDOM(target, html, config.swap, element);
+                const swappedElement = updateDOM(target, html, config.swap, element);
+
+                triggerCustomEvent(element, 'hz:afterSwap', {
+                    response,
+                    config,
+                    triggerEvent,
+                    target: swappedElement
+                });
+
+                triggerCustomEvent(swappedElement || element, 'hz:load', {
+                    response,
+                    config,
+                    triggerEvent
+                });
             }
 
             triggerCustomEvent(element, 'hz:afterRequest', {
@@ -218,8 +239,12 @@ function executeRequest(element, config, triggerEvent) {
         .catch(error => {
             markRequestEnd(element);
             hideIndicator(element, config);
+            removeRequestClass(element);
 
-            triggerCustomEvent(element, 'hz:requestError', {
+            const isNetworkError = error instanceof TypeError || error.name === 'NetworkError';
+            const eventName = isNetworkError ? 'hz:sendError' : 'hz:requestError';
+
+            triggerCustomEvent(element, eventName, {
                 error,
                 config,
                 triggerEvent
@@ -292,5 +317,38 @@ function removeGlobalEventListener(eventName, selector) {
     if (handler) {
         document.removeEventListener(eventName, handler);
         GLOBAL_LISTENERS.delete(key);
+    }
+}
+
+function addRequestClass(element) {
+    if (typeof htmz !== 'undefined' && htmz.config.requestClass) {
+        element.classList.add(htmz.config.requestClass);
+    }
+}
+
+function removeRequestClass(element) {
+    if (typeof htmz !== 'undefined' && htmz.config.requestClass) {
+        element.classList.remove(htmz.config.requestClass);
+    }
+}
+
+function addSwappingClass(element) {
+    if (typeof htmz !== 'undefined' && htmz.config.swappingClass) {
+        element.classList.add(htmz.config.swappingClass);
+    }
+}
+
+function removeSwappingClass(element) {
+    if (typeof htmz !== 'undefined' && htmz.config.swappingClass) {
+        element.classList.remove(htmz.config.swappingClass);
+    }
+}
+
+function addSettlingClass(element) {
+    if (typeof htmz !== 'undefined' && htmz.config.settlingClass) {
+        element.classList.add(htmz.config.settlingClass);
+        setTimeout(() => {
+            element.classList.remove(htmz.config.settlingClass);
+        }, htmz.config.defaultSettleDelay || 20);
     }
 }

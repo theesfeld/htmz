@@ -19,7 +19,11 @@ function renderTemplate(templateConfig, data) {
     const template = getTemplate(templateConfig);
     if (!template) return '';
 
-    return processTemplate(template, data);
+    const result = processTemplate(template, data);
+
+    processOutOfBandSwaps(data);
+
+    return result;
 }
 
 function getTemplate(templateConfig) {
@@ -216,4 +220,42 @@ function precompileTemplate(templateStr) {
     CONDITIONAL_REGEX.lastIndex = 0;
 
     return compiled;
+}
+
+function processOutOfBandSwaps(data) {
+    if (!data || typeof data !== 'object') return;
+
+    for (const key in data) {
+        if (key.startsWith('_oob_') || key.startsWith('_')) {
+            const selector = key.startsWith('_oob_') ? key.substring(5) : key.substring(1);
+            const content = data[key];
+
+            if (typeof content === 'string') {
+                const targets = document.querySelectorAll(selector);
+                targets.forEach(target => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(content, 'text/html');
+                    const swapElement = doc.body.firstElementChild;
+
+                    if (swapElement) {
+                        const swapStrategy = swapElement.getAttribute('hz-swap-oob') || 'innerHTML';
+                        const swapConfig = { strategy: swapStrategy };
+
+                        swapElement.removeAttribute('hz-swap-oob');
+                        const html = swapElement.outerHTML;
+
+                        updateDOM(selector, html, swapConfig, document.body);
+                    } else {
+                        updateDOM(selector, content, { strategy: 'innerHTML' }, document.body);
+                    }
+                });
+            } else if (typeof content === 'object' && content.template) {
+                const template = { type: 'selector', value: content.template };
+                const html = renderTemplate(template, content.data || content);
+                const swapConfig = { strategy: content.swap || 'innerHTML' };
+
+                updateDOM(selector, html, swapConfig, document.body);
+            }
+        }
+    }
 }

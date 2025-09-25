@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /*
- * server.js - Secure proxy server for htmz environment variables
+ * server.js - TOML-configured secure proxy server for htmz
  * Copyright (C) 2025 William Theesfeld <william@theesfeld.net>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -12,304 +12,464 @@
 
 "use strict";
 
-const express = require('express');
-const cors = require('cors');
+const http = require('http');
+const https = require('https');
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
-const app = express();
-const PORT = process.env.PORT || 3001;
-const ENV_FILE = process.env.HTMZ_ENV || '.env';
+const CONFIG_FILE = process.env.HTMZ_CONFIG || 'htmz.toml';
+const PORT = process.env.HTMZ_PORT || 3001;
+const HOST = '127.0.0.1';
+const SECRET_FILE = '.htmz-secret';
 
-// Environment variables cache
-let envVars = {};
+let config = {};
+let allowedEndpoints = new Set();
+let hmacSecret = '';
+let requestCounter = 0;
+const PROXY_VERSION = '3.0.0';
+const instanceId = `proxy-${Math.random().toString(36).substr(2, 6)}`;
 
-function loadEnvironmentVariables() {
-    const envPath = path.resolve(ENV_FILE);
-
-    if (!fs.existsSync(envPath)) {
-        console.warn(`htmz-proxy: Environment file '${envPath}' not found`);
-        return;
-    }
-
-    try {
-        const envContent = fs.readFileSync(envPath, 'utf8');
-        envVars = parseEnvFile(envContent);
-
-        const keyCount = Object.keys(envVars).length;
-        console.log(`htmz-proxy: Loaded ${keyCount} environment variables from ${envPath}`);
-
-        // Log non-sensitive variables for debugging
-        Object.keys(envVars).forEach(key => {
-            if (!isSensitiveKey(key)) {
-                console.log(`  ${key}=${envVars[key]}`);
-            } else {
-                console.log(`  ${key}=*** (hidden)`);
-            }
-        });
-
-    } catch (error) {
-        console.error(`htmz-proxy: Failed to load environment file: ${error.message}`);
-    }
+function generateRequestId() {
+    const timestamp = Date.now().toString(36);
+    const random = Math.random().toString(36).substr(2, 8);
+    return `req_${timestamp}_${random}`;
 }
 
-function parseEnvFile(content) {
-    const vars = {};
+function parseTOML(content) {
+    const result = {};
     const lines = content.split('\n');
+    let currentSection = result;
+    let currentSectionPath = [];
 
-    for (const line of lines) {
-        const trimmed = line.trim();
+    for (let i = 0; i < lines.length; i++) {
+        let line = lines[i].trim();
 
-        // Skip empty lines and comments
-        if (!trimmed || trimmed.startsWith('#')) {
+        if (!line || line.startsWith('#')) continue;
+
+        if (line.startsWith('[') && line.endsWith(']')) {
+            const sectionName = line.slice(1, -1);
+            const parts = sectionName.split('.');
+
+            currentSectionPath = parts;
+            currentSection = result;
+
+            for (const part of parts) {
+                if (!currentSection[part]) {
+                    currentSection[part] = {};
+                }
+                currentSection = currentSection[part];
+            }
             continue;
         }
 
-        const [key, ...valueParts] = trimmed.split('=');
-        if (key && valueParts.length > 0) {
-            // Handle quoted values
-            let value = valueParts.join('=');
-            value = value.replace(/^["']|["']$/g, ''); // Remove surrounding quotes
-            vars[key.trim()] = value;
+        const equalIndex = line.indexOf('=');
+        if (equalIndex === -1) continue;
+
+        const key = line.substring(0, equalIndex).trim();
+        let value = line.substring(equalIndex + 1).trim();
+
+        if (value.startsWith('"') && value.endsWith('"')) {
+            value = value.slice(1, -1);
+        } else if (value === 'true') {
+            value = true;
+        } else if (value === 'false') {
+            value = false;
+        } else if (!isNaN(value)) {
+            value = Number(value);
         }
+
+        currentSection[key] = value;
     }
 
-    return vars;
+    return result;
 }
 
-function isSensitiveKey(key) {
-    const sensitivePatterns = [
-        /key$/i, /secret$/i, /token$/i, /password$/i, /pass$/i,
-        /auth$/i, /api_key$/i, /private$/i, /credential$/i,
-        /jwt$/i, /bearer$/i, /oauth$/i, /client_secret$/i
-    ];
+function loadTOMLConfig() {
+    config = {};
+    allowedEndpoints.clear();
 
-    return sensitivePatterns.some(pattern => pattern.test(key));
-}
-
-function resolveEnvVars(str) {
-    if (typeof str !== 'string') return str;
-
-    return str.replace(/\{\{env\.([^}]+)\}\}/g, (match, key) => {
-        if (envVars.hasOwnProperty(key)) {
-            return envVars[key];
-        }
-
-        console.warn(`htmz-proxy: Environment variable '${key}' not found`);
-        return match; // Keep original if not found
-    });
-}
-
-function resolveObjectEnvVars(obj) {
-    if (!obj || typeof obj !== 'object') return obj;
-
-    const resolved = {};
-    for (const [key, value] of Object.entries(obj)) {
-        if (typeof value === 'string') {
-            resolved[key] = resolveEnvVars(value);
-        } else if (typeof value === 'object') {
-            resolved[key] = resolveObjectEnvVars(value);
-        } else {
-            resolved[key] = value;
-        }
-    }
-
-    return resolved;
-}
-
-function hasEnvVars(obj) {
-    if (typeof obj === 'string') {
-        return /\{\{env\.[^}]+\}\}/.test(obj);
-    }
-
-    if (typeof obj === 'object' && obj !== null) {
-        return Object.values(obj).some(hasEnvVars);
-    }
-
-    return false;
-}
-
-// Middleware
-app.use(express.json());
-
-// CORS configuration - restrictive by default
-const corsOptions = {
-    origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps or curl requests)
-        if (!origin) return callback(null, true);
-
-        // Allow localhost and 127.0.0.1 for development
-        const allowedOrigins = [
-            'http://localhost:8000',
-            'http://localhost:8001',
-            'http://localhost:8002',
-            'http://localhost:3000',
-            'http://127.0.0.1:8000',
-            'http://127.0.0.1:8001',
-            'http://127.0.0.1:8002',
-            'http://127.0.0.1:3000',
-            'file://' // For local file:// protocol testing
-        ];
-
-        // In production, you'd configure specific allowed origins
-        if (process.env.NODE_ENV === 'production' && process.env.ALLOWED_ORIGINS) {
-            allowedOrigins.push(...process.env.ALLOWED_ORIGINS.split(','));
-        }
-
-        if (allowedOrigins.some(allowed => origin.startsWith(allowed))) {
-            callback(null, true);
-        } else {
-            console.warn(`htmz-proxy: Blocked request from origin: ${origin}`);
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    credentials: true
-};
-
-app.use(cors(corsOptions));
-
-// Health check endpoint
-app.get('/health', (req, res) => {
-    res.json({
-        status: 'ok',
-        service: 'htmz-proxy',
-        version: '1.0.0',
-        envVarsLoaded: Object.keys(envVars).length
-    });
-});
-
-// Main proxy endpoint
-app.post('/htmz-proxy', async (req, res) => {
-    const { url, method = 'GET', headers = {}, body } = req.body;
-
-    if (!url) {
-        return res.status(400).json({
-            error: 'Missing required field: url'
-        });
+    if (!fs.existsSync(CONFIG_FILE)) {
+        console.error(`htmz-proxy: Configuration file '${CONFIG_FILE}' not found`);
+        process.exit(1);
     }
 
     try {
-        // Resolve environment variables in URL and headers
-        const resolvedUrl = resolveEnvVars(url);
-        const resolvedHeaders = resolveObjectEnvVars(headers);
-        const resolvedBody = resolveObjectEnvVars(body);
+        const tomlContent = fs.readFileSync(CONFIG_FILE, 'utf8');
+        config = parseTOML(tomlContent);
 
-        // Log the request (without sensitive data)
-        console.log(`htmz-proxy: ${method.toUpperCase()} ${resolvedUrl}`);
+        console.log('🔧 TOML configuration loaded successfully');
 
-        // Set up fetch options
-        const fetchOptions = {
-            method: method.toUpperCase(),
-            headers: {
-                'User-Agent': 'htmz-proxy/1.0.0',
-                ...resolvedHeaders
+        if (config.apis) {
+            let apiCount = 0;
+            for (const [apiName, apiConfig] of Object.entries(config.apis)) {
+                if (apiConfig.endpoint) {
+                    try {
+                        const url = new URL(apiConfig.endpoint);
+                        const baseUrl = `${url.protocol}//${url.hostname}`;
+                        allowedEndpoints.add(baseUrl);
+                        console.log(`🔐 Auto-whitelisted ${apiName}: ${baseUrl}`);
+                        apiCount++;
+                    } catch (e) {
+                        console.warn(`⚠️  Invalid endpoint for ${apiName}: ${apiConfig.endpoint}`);
+                    }
+                }
             }
-        };
-
-        // Add body for non-GET requests
-        if (['POST', 'PUT', 'PATCH'].includes(fetchOptions.method) && resolvedBody) {
-            fetchOptions.body = typeof resolvedBody === 'string'
-                ? resolvedBody
-                : JSON.stringify(resolvedBody);
-
-            // Ensure content-type is set for JSON
-            if (!fetchOptions.headers['Content-Type'] && typeof resolvedBody === 'object') {
-                fetchOptions.headers['Content-Type'] = 'application/json';
-            }
+            console.log(`✅ Loaded ${apiCount} API endpoints`);
         }
 
-        // Make the actual API request
-        const response = await fetch(resolvedUrl, fetchOptions);
-
-        // Get response data
-        const contentType = response.headers.get('content-type');
-        let responseData;
-
-        if (contentType && contentType.includes('application/json')) {
-            responseData = await response.json();
-        } else {
-            responseData = await response.text();
+        if (config.template_vars) {
+            const varCount = Object.keys(config.template_vars).length;
+            console.log(`📝 Loaded ${varCount} template variables`);
         }
-
-        // Return response with original status
-        res.status(response.status).json({
-            success: response.ok,
-            status: response.status,
-            statusText: response.statusText,
-            data: responseData,
-            headers: Object.fromEntries(response.headers.entries())
-        });
 
     } catch (error) {
-        console.error('htmz-proxy: Request failed:', error.message);
-
-        res.status(500).json({
-            success: false,
-            error: error.message,
-            type: 'proxy_error'
-        });
+        console.error('htmz-proxy: Failed to parse TOML configuration:', error.message);
+        process.exit(1);
     }
-});
+}
 
-// Error handling
-app.use((err, req, res, next) => {
-    console.error('htmz-proxy: Unhandled error:', err);
-    res.status(500).json({
-        success: false,
-        error: 'Internal server error',
-        type: 'server_error'
+function initializeSecurity() {
+    if (fs.existsSync(SECRET_FILE)) {
+        hmacSecret = fs.readFileSync(SECRET_FILE, 'utf8').trim();
+    } else {
+        hmacSecret = crypto.randomBytes(64).toString('hex');
+        fs.writeFileSync(SECRET_FILE, hmacSecret, { mode: 0o600 });
+        console.log('🔐 Generated new HMAC secret');
+    }
+}
+
+function verifyHMAC(payload, signature) {
+    try {
+        const expectedSignature = crypto
+            .createHmac('sha256', hmacSecret)
+            .update(JSON.stringify(payload))
+            .digest('hex');
+        return crypto.timingSafeEqual(
+            Buffer.from(signature, 'hex'),
+            Buffer.from(expectedSignature, 'hex')
+        );
+    } catch (error) {
+        return false;
+    }
+}
+
+function isEndpointAllowed(url) {
+    try {
+        const urlObj = new URL(url);
+        const baseUrl = `${urlObj.protocol}//${urlObj.hostname}`;
+        return allowedEndpoints.has(baseUrl);
+    } catch (error) {
+        return false;
+    }
+}
+
+function getApiConfig(url) {
+    if (!config.apis) return null;
+
+    for (const [apiName, apiConfig] of Object.entries(config.apis)) {
+        if (url.startsWith(apiConfig.endpoint)) {
+            return { name: apiName, config: apiConfig };
+        }
+    }
+    return null;
+}
+
+function addAuthenticationHeaders(options, apiConfig) {
+    if (!apiConfig || !apiConfig.auth_type || apiConfig.auth_type === 'none') {
+        return options;
+    }
+
+    switch (apiConfig.auth_type) {
+        case 'bearer':
+            if (apiConfig.token) {
+                options.headers['Authorization'] = `Bearer ${apiConfig.token}`;
+            }
+            break;
+        case 'api_header':
+            if (apiConfig.header_name && apiConfig.key) {
+                options.headers[apiConfig.header_name] = apiConfig.key;
+            }
+            break;
+        case 'basic':
+            if (apiConfig.username && apiConfig.password) {
+                const credentials = Buffer.from(`${apiConfig.username}:${apiConfig.password}`).toString('base64');
+                options.headers['Authorization'] = `Basic ${credentials}`;
+            }
+            break;
+    }
+
+    return options;
+}
+
+function processUrlWithAuth(url, apiConfig) {
+    if (!apiConfig || !apiConfig.auth_type || apiConfig.auth_type === 'none') {
+        return url;
+    }
+
+    if (apiConfig.auth_type === 'api_key' && apiConfig.key_param && apiConfig.key) {
+        const urlObj = new URL(url);
+        urlObj.searchParams.set(apiConfig.key_param, apiConfig.key);
+        return urlObj.toString();
+    }
+
+    return url;
+}
+
+async function handleProxyRequest(req, res) {
+    const startTime = Date.now();
+    const requestId = generateRequestId();
+    requestCounter++;
+
+    let body = '';
+    req.on('data', chunk => {
+        body += chunk.toString();
     });
-});
 
-// 404 handler
-app.use((req, res) => {
-    res.status(404).json({
-        success: false,
-        error: 'Endpoint not found',
-        available: ['/health', '/htmz-proxy']
-    });
-});
+    req.on('end', async () => {
+        try {
+            const requestData = JSON.parse(body);
+            const signature = req.headers['x-htmz-signature'];
 
-// CLI argument parsing
-const args = process.argv.slice(2);
-const devMode = args.includes('--dev') || process.env.NODE_ENV === 'development';
+            if (!signature || !verifyHMAC(requestData, signature)) {
+                console.log(`❌ HMAC verification failed for request ${requestId}`);
+                res.writeHead(403, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: false,
+                    error: 'Invalid HMAC signature',
+                    type: 'AUTHENTICATION_ERROR'
+                }));
+                return;
+            }
 
-// Load environment variables on startup
-loadEnvironmentVariables();
+            const { url, method, headers = {}, body: requestBody } = requestData;
 
-// Watch for .env file changes in dev mode
-if (devMode && fs.existsSync(ENV_FILE)) {
-    console.log('htmz-proxy: Development mode - watching for .env changes');
-    fs.watchFile(ENV_FILE, () => {
-        console.log('htmz-proxy: .env file changed, reloading...');
-        loadEnvironmentVariables();
+            if (!isEndpointAllowed(url)) {
+                console.log(`🚫 Endpoint not whitelisted: ${url}`);
+                res.writeHead(403, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: false,
+                    error: 'Endpoint not allowed',
+                    type: 'ENDPOINT_NOT_ALLOWED'
+                }));
+                return;
+            }
+
+            const apiInfo = getApiConfig(url);
+            const processedUrl = processUrlWithAuth(url, apiInfo?.config);
+
+            console.log(`🌐 ${method} ${processedUrl} [${apiInfo?.name || 'Unknown'}]`);
+
+            const urlObj = new URL(processedUrl);
+            const isHttps = urlObj.protocol === 'https:';
+            const requestModule = isHttps ? https : http;
+
+            const options = {
+                hostname: urlObj.hostname,
+                port: urlObj.port || (isHttps ? 443 : 80),
+                path: urlObj.pathname + urlObj.search,
+                method: method.toUpperCase(),
+                headers: {
+                    'User-Agent': 'htmz-proxy/3.0.0',
+                    'Accept': 'application/json',
+                    ...headers
+                }
+            };
+
+            addAuthenticationHeaders(options, apiInfo?.config);
+
+            const externalStartTime = Date.now();
+            const proxyReq = requestModule.request(options, (proxyRes) => {
+                const externalEndTime = Date.now();
+                const externalDuration = externalEndTime - externalStartTime;
+
+                let responseData = '';
+                proxyRes.on('data', chunk => {
+                    responseData += chunk;
+                });
+
+                proxyRes.on('end', () => {
+                    const endTime = Date.now();
+                    const totalDuration = endTime - startTime;
+
+                    let parsedData;
+                    try {
+                        parsedData = JSON.parse(responseData);
+                    } catch (e) {
+                        parsedData = responseData;
+                    }
+
+                    const metadata = {
+                        request: {
+                            id: requestId,
+                            timestamp: new Date(startTime).toISOString(),
+                            originalUrl: url,
+                            resolvedUrl: processedUrl,
+                            method: method.toUpperCase(),
+                            payloadSize: Buffer.byteLength(body, 'utf8'),
+                            apiName: apiInfo?.name || 'unknown'
+                        },
+                        security: {
+                            hmacVerified: true,
+                            hmacAlgorithm: 'SHA-256',
+                            endpointWhitelisted: true,
+                            authType: apiInfo?.config?.auth_type || 'none'
+                        },
+                        external: {
+                            requestSent: new Date(externalStartTime).toISOString(),
+                            responseReceived: new Date(externalEndTime).toISOString(),
+                            duration: externalDuration,
+                            status: proxyRes.statusCode,
+                            headers: proxyRes.headers,
+                            payloadSize: Buffer.byteLength(responseData, 'utf8')
+                        },
+                        performance: {
+                            totalDuration: totalDuration,
+                            externalDuration: externalDuration,
+                            proxyOverhead: totalDuration - externalDuration,
+                            requestCount: requestCounter
+                        },
+                        proxy: {
+                            version: PROXY_VERSION,
+                            instance: instanceId,
+                            timestamp: new Date(endTime).toISOString()
+                        }
+                    };
+
+                    console.log(`✅ ${proxyRes.statusCode} ${processedUrl} (${totalDuration}ms)`);
+
+                    res.writeHead(200, {
+                        'Content-Type': 'application/json',
+                        'Access-Control-Allow-Origin': '*',
+                        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+                        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-HTMZ-Signature'
+                    });
+
+                    res.end(JSON.stringify({
+                        success: true,
+                        metadata: metadata,
+                        data: parsedData
+                    }));
+                });
+            });
+
+            proxyReq.on('error', (error) => {
+                console.error(`💥 External request error: ${error.message}`);
+                res.writeHead(502, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: false,
+                    error: `External API error: ${error.message}`,
+                    type: 'EXTERNAL_API_ERROR'
+                }));
+            });
+
+            if (requestBody && ['POST', 'PUT', 'PATCH'].includes(method.toUpperCase())) {
+                proxyReq.write(typeof requestBody === 'string' ? requestBody : JSON.stringify(requestBody));
+            }
+
+            proxyReq.end();
+
+        } catch (error) {
+            console.error(`💥 Proxy request error: ${error.message}`);
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                error: `Invalid request: ${error.message}`,
+                type: 'REQUEST_ERROR'
+            }));
+        }
     });
 }
 
-// Start server
-app.listen(PORT, () => {
-    console.log('');
-    console.log('🚀 htmz-proxy server started');
-    console.log('');
-    console.log(`   Local:   http://localhost:${PORT}`);
-    console.log(`   Health:  http://localhost:${PORT}/health`);
-    console.log(`   Proxy:   POST http://localhost:${PORT}/htmz-proxy`);
-    console.log('');
-    console.log('🔐 Environment variables are secure server-side only!');
-    console.log('   Frontend will never see your API keys or secrets.');
-    console.log('');
+function handleSecretRequest(req, res) {
+    const secretData = {
+        secret: hmacSecret,
+        ttl: 3600,
+        timestamp: Date.now()
+    };
 
-    if (Object.keys(envVars).length === 0) {
-        console.log('⚠️  No environment variables loaded. Create a .env file with your API keys.');
+    res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+    });
+    res.end(JSON.stringify(secretData));
+}
+
+function handleTemplateVars(req, res) {
+    const templateVars = config.template_vars || {};
+
+    res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+    });
+    res.end(JSON.stringify(templateVars));
+}
+
+const server = http.createServer((req, res) => {
+    if (req.method === 'OPTIONS') {
+        res.writeHead(200, {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-HTMZ-Signature'
+        });
+        res.end();
+        return;
     }
 
-    console.log('Press Ctrl+C to stop\n');
+    if (req.url === '/htmz-proxy' && req.method === 'POST') {
+        handleProxyRequest(req, res);
+    } else if (req.url === '/htmz-secret' && req.method === 'GET') {
+        handleSecretRequest(req, res);
+    } else if (req.url === '/htmz-vars' && req.method === 'GET') {
+        handleTemplateVars(req, res);
+    } else {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Not found' }));
+    }
 });
 
-// Graceful shutdown
+function startServer() {
+    loadTOMLConfig();
+    initializeSecurity();
+
+    const configPort = config.proxy?.port || PORT;
+    const configHost = config.proxy?.host || HOST;
+
+    server.listen(configPort, configHost, () => {
+        console.log('\n🔐 htmz-secure-proxy started');
+        console.log(`\n   Transport: HTTP (localhost only)`);
+        console.log(`   Address:   ${configHost}:${configPort}`);
+        console.log(`   Security:  HMAC-SHA256 + Endpoint Whitelisting`);
+        console.log(`   Endpoints: ${allowedEndpoints.size} whitelisted`);
+        console.log(`\n🚀 Maximum security: Localhost + HMAC signing`);
+        console.log('   • Localhost-only binding (127.0.0.1)');
+        console.log('   • HMAC request integrity verification');
+        console.log('   • Endpoint whitelisting enforced');
+        console.log('   • Authentication per endpoint');
+        console.log(`   • TOML configuration loaded\n`);
+
+        console.log('📋 Whitelisted endpoints:');
+        for (const endpoint of allowedEndpoints) {
+            console.log(`  ✅ ${endpoint}`);
+        }
+
+        if (process.argv.includes('--dev')) {
+            console.log('\n🔄 Development mode - watching for config changes');
+            fs.watchFile(CONFIG_FILE, () => {
+                console.log('\n📝 Configuration file changed, reloading...');
+                loadTOMLConfig();
+            });
+        }
+
+        console.log('\nPress Ctrl+C to stop\n');
+    });
+}
+
 process.on('SIGINT', () => {
-    console.log('\n👋 htmz-proxy server stopped');
-    process.exit(0);
+    console.log('\n👋 Shutting down htmz-proxy...');
+    server.close(() => {
+        process.exit(0);
+    });
 });
+
+startServer();

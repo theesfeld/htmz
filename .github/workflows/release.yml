@@ -1,0 +1,106 @@
+name: Release and Publish
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Extract version from tag
+        id: get_version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+
+      - name: Update package.json version
+        run: |
+          npm version ${{ steps.get_version.outputs.VERSION }} --no-git-tag-version
+          echo "Updated package.json to version ${{ steps.get_version.outputs.VERSION }}"
+
+      - name: Build package
+        run: |
+          make clean
+          make build
+          echo "Build completed"
+
+      - name: Verify build artifacts
+        run: |
+          ls -la dist/
+          echo "Verifying htmz.js exists:"
+          test -f dist/htmz.js || exit 1
+          echo "Verifying htmz.min.js exists:"
+          test -f dist/htmz.min.js || exit 1
+          echo "Build artifacts verified"
+
+      - name: Publish to npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ steps.get_version.outputs.VERSION }}
+          body: |
+            ## htmz v${{ steps.get_version.outputs.VERSION }}
+
+            ### 🚀 Installation
+            ```bash
+            npm install @htmz/htmz@${{ steps.get_version.outputs.VERSION }}
+            ```
+
+            ### 📦 CDN
+            ```html
+            <script src="https://unpkg.com/@htmz/htmz@${{ steps.get_version.outputs.VERSION }}/dist/htmz.min.js"></script>
+            ```
+
+            ### 🔐 Security Features
+            - Localhost-only proxy binding (127.0.0.1)
+            - HMAC-SHA256 request signing
+            - TOML-based endpoint whitelisting
+            - Per-endpoint authentication
+
+            ### 📋 Changes
+            See commit history for detailed changes in this release.
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/htmz.js
+          asset_name: htmz.js
+          asset_content_type: application/javascript
+
+      - name: Upload Minified Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/htmz.min.js
+          asset_name: htmz.min.js
+          asset_content_type: application/javascript

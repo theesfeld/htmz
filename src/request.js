@@ -19,41 +19,102 @@ const DEFAULT_HEADERS = {
 // Global proxy configuration
 let PROXY_CONFIG = {
     url: 'http://localhost:3001/htmz-proxy',
-    enabled: true
+    enabled: true,
+    secret: null,
+    secretExpiry: null
 };
 
-function makeRequest(method, url, data, config = {}) {
+async function fetchHMACSecret() {
+    if (PROXY_CONFIG.secret && PROXY_CONFIG.secretExpiry && Date.now() < PROXY_CONFIG.secretExpiry) {
+        return PROXY_CONFIG.secret;
+    }
+
+    try {
+        const secretUrl = PROXY_CONFIG.url.replace('/htmz-proxy', '/htmz-secret');
+        const response = await fetch(secretUrl, {
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json' }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch HMAC secret: ${response.status}`);
+        }
+
+        const data = await response.json();
+        PROXY_CONFIG.secret = data.secret;
+        PROXY_CONFIG.secretExpiry = Date.now() + (data.ttl * 1000);
+        return PROXY_CONFIG.secret;
+    } catch (error) {
+        console.error('htmz: Failed to fetch HMAC secret:', error);
+        throw new Error('Unable to establish secure connection to proxy');
+    }
+}
+
+async function computeHMAC(payload, secret) {
+    if (!window.crypto || !window.crypto.subtle) {
+        throw new Error('Web Crypto API not available');
+    }
+
+    const encoder = new TextEncoder();
+    const keyMaterial = encoder.encode(secret);
+    const data = encoder.encode(JSON.stringify(payload));
+
+    const key = await crypto.subtle.importKey(
+        'raw',
+        keyMaterial,
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign']
+    );
+
+    const signature = await crypto.subtle.sign('HMAC', key, data);
+    return Array.from(new Uint8Array(signature))
+        .map(byte => byte.toString(16).padStart(2, '0'))
+        .join('');
+}
+
+async function makeRequest(method, url, data, config = {}) {
     // Always route through proxy for security
     if (PROXY_CONFIG.enabled) {
-        return makeProxyRequest(method, url, data, config);
+        return await makeProxyRequest(method, url, data, config);
     }
 
     // Fallback to direct request (for testing or when proxy disabled)
     return makeDirectRequest(method, url, data, config);
 }
 
-function makeProxyRequest(method, url, data, config = {}) {
-    const proxyPayload = {
-        url: url,
-        method: method.toUpperCase(),
-        headers: config.headers || {},
-        body: data
-    };
+async function makeProxyRequest(method, url, data, config = {}) {
+    try {
+        const secret = await fetchHMACSecret();
 
-    const options = {
-        method: 'POST',
-        headers: { ...DEFAULT_HEADERS },
-        credentials: 'same-origin',
-        body: JSON.stringify(proxyPayload)
-    };
+        const proxyPayload = {
+            url: url,
+            method: method.toUpperCase(),
+            headers: config.headers || {},
+            body: data
+        };
 
-    if (config.signal) {
-        options.signal = config.signal;
+        const signature = await computeHMAC(proxyPayload, secret);
+
+        const options = {
+            method: 'POST',
+            headers: {
+                ...DEFAULT_HEADERS,
+                'X-HTMZ-Signature': signature
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify(proxyPayload)
+        };
+
+        if (config.signal) {
+            options.signal = config.signal;
+        }
+
+        const response = await fetch(PROXY_CONFIG.url, options);
+        return handleProxyResponse(response);
+    } catch (error) {
+        return handleProxyError(error, url, method);
     }
-
-    return fetch(PROXY_CONFIG.url, options)
-        .then(response => handleProxyResponse(response))
-        .catch(error => handleProxyError(error, url, method));
 }
 
 function makeDirectRequest(method, url, data, config = {}) {
@@ -97,7 +158,15 @@ function handleProxyResponse(response) {
 
     return response.json().then(proxyData => {
         if (!proxyData.success) {
-            throw new Error(proxyData.error || 'Proxy request failed');
+            const error = new Error(proxyData.error || 'Proxy request failed');
+            error.metadata = proxyData.metadata;
+            error.type = proxyData.type;
+            throw error;
+        }
+
+        // Log metadata for debugging if enabled
+        if (window.htmz && window.htmz.config && window.htmz.config.logRequests) {
+            console.log('htmz: Proxy metadata:', proxyData.metadata);
         }
 
         return proxyData.data;
@@ -167,19 +236,82 @@ function serializeElement(element, config) {
 }
 
 function buildUrl(url, params) {
-    if (!params || Object.keys(params).length === 0) {
-        return url;
+    // CRITICAL: Unified URL template processor - handles ALL placeholder types
+    try {
+        return processUrlTemplate(url, params || {});
+    } catch (error) {
+        console.error('htmz: CRITICAL URL processing failed:', error);
+        console.error('htmz: URL:', url);
+        console.error('htmz: Params:', params);
+        throw new Error(`URL template processing failed: ${error.message}`);
+    }
+}
+
+function processUrlTemplate(url, params) {
+    if (!url || typeof url !== 'string') {
+        throw new Error('Invalid URL provided');
     }
 
-    const urlObj = new URL(url, window.location.href);
+    let processedUrl = url;
+    const consumedParams = new Set();
 
-    for (const [key, value] of Object.entries(params)) {
-        if (value !== null && value !== undefined) {
-            urlObj.searchParams.set(key, value);
+    // Step 1: Replace {fieldName} placeholders with actual values
+    // Use regex to find all {fieldName} patterns, but EXCLUDE {{env.VAR}} patterns
+    const fieldPlaceholderRegex = /(?<!\{)\{([^}]+)\}(?!\})/g;
+    let match;
+
+    // Reset regex state
+    fieldPlaceholderRegex.lastIndex = 0;
+
+    while ((match = fieldPlaceholderRegex.exec(url)) !== null) {
+        const fieldName = match[1];
+        const placeholder = match[0]; // Full match like {value}
+
+        // Skip environment variables - they're processed server-side
+        if (fieldName.startsWith('env.')) {
+            continue;
+        }
+
+        if (params.hasOwnProperty(fieldName)) {
+            const value = params[fieldName];
+            if (value !== null && value !== undefined) {
+                // Replace ALL instances of this placeholder
+                processedUrl = processedUrl.replace(new RegExp(`(?<!\\{)\\{${escapeRegExp(fieldName)}\\}(?!\\})`, 'g'),
+                    encodeURIComponent(String(value)));
+                consumedParams.add(fieldName);
+            } else {
+                console.warn(`htmz: Field placeholder {${fieldName}} found but value is null/undefined`);
+            }
+        } else {
+            console.warn(`htmz: Field placeholder {${fieldName}} found but no matching parameter provided`);
         }
     }
 
-    return urlObj.toString();
+    // Step 2: Handle remaining query parameters
+    const remainingParams = {};
+    for (const [key, value] of Object.entries(params)) {
+        if (!consumedParams.has(key) && value !== null && value !== undefined) {
+            remainingParams[key] = value;
+        }
+    }
+
+    // Step 3: Add remaining parameters as query string
+    const remainingEntries = Object.entries(remainingParams);
+    if (remainingEntries.length === 0) {
+        return processedUrl;
+    }
+
+    // Determine if URL already has query parameters
+    const separator = processedUrl.includes('?') ? '&' : '?';
+    const queryString = remainingEntries
+        .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+        .join('&');
+
+    return `${processedUrl}${separator}${queryString}`;
+}
+
+function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function createAbortController() {

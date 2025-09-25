@@ -14,7 +14,8 @@ const HZ_ATTRIBUTES = [
     'hz-get', 'hz-post', 'hz-put', 'hz-delete', 'hz-patch',
     'hz-template', 'hz-target', 'hz-swap', 'hz-trigger',
     'hz-params', 'hz-headers', 'hz-include', 'hz-confirm',
-    'hz-indicator', 'hz-sync'
+    'hz-indicator', 'hz-sync', 'hz-swap-oob', 'hz-push-url',
+    'hz-select', 'hz-select-oob', 'hz-preserve'
 ];
 
 function parseAttributes(element) {
@@ -30,7 +31,12 @@ function parseAttributes(element) {
         include: null,
         confirm: null,
         indicator: null,
-        sync: null
+        sync: null,
+        swapOob: null,
+        pushUrl: null,
+        select: null,
+        selectOob: null,
+        preserve: null
     };
 
     for (const attr of HZ_ATTRIBUTES) {
@@ -71,6 +77,26 @@ function parseAttributes(element) {
 
             case 'headers':
                 config.headers = parseHeaders(value);
+                break;
+
+            case 'swap-oob':
+                config.swapOob = value;
+                break;
+
+            case 'push-url':
+                config.pushUrl = value;
+                break;
+
+            case 'select':
+                config.select = value;
+                break;
+
+            case 'select-oob':
+                config.selectOob = value;
+                break;
+
+            case 'preserve':
+                config.preserve = value;
                 break;
 
             default:

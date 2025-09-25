@@ -96,7 +96,8 @@ const HZ_ATTRIBUTES = [
     'hz-get', 'hz-post', 'hz-put', 'hz-delete', 'hz-patch',
     'hz-template', 'hz-target', 'hz-swap', 'hz-trigger',
     'hz-params', 'hz-headers', 'hz-include', 'hz-confirm',
-    'hz-indicator', 'hz-sync'
+    'hz-indicator', 'hz-sync', 'hz-swap-oob', 'hz-push-url',
+    'hz-select', 'hz-select-oob', 'hz-preserve'
 ];
 
 function parseAttributes(element) {
@@ -112,7 +113,12 @@ function parseAttributes(element) {
         include: null,
         confirm: null,
         indicator: null,
-        sync: null
+        sync: null,
+        swapOob: null,
+        pushUrl: null,
+        select: null,
+        selectOob: null,
+        preserve: null
     };
 
     for (const attr of HZ_ATTRIBUTES) {
@@ -153,6 +159,26 @@ function parseAttributes(element) {
 
             case 'headers':
                 config.headers = parseHeaders(value);
+                break;
+
+            case 'swap-oob':
+                config.swapOob = value;
+                break;
+
+            case 'push-url':
+                config.pushUrl = value;
+                break;
+
+            case 'select':
+                config.select = value;
+                break;
+
+            case 'select-oob':
+                config.selectOob = value;
+                break;
+
+            case 'preserve':
+                config.preserve = value;
                 break;
 
             default:
@@ -523,7 +549,11 @@ function renderTemplate(templateConfig, data) {
     const template = getTemplate(templateConfig);
     if (!template) return '';
 
-    return processTemplate(template, data);
+    const result = processTemplate(template, data);
+
+    processOutOfBandSwaps(data);
+
+    return result;
 }
 
 function getTemplate(templateConfig) {
@@ -720,6 +750,44 @@ function precompileTemplate(templateStr) {
     CONDITIONAL_REGEX.lastIndex = 0;
 
     return compiled;
+}
+
+function processOutOfBandSwaps(data) {
+    if (!data || typeof data !== 'object') return;
+
+    for (const key in data) {
+        if (key.startsWith('_oob_') || key.startsWith('_')) {
+            const selector = key.startsWith('_oob_') ? key.substring(5) : key.substring(1);
+            const content = data[key];
+
+            if (typeof content === 'string') {
+                const targets = document.querySelectorAll(selector);
+                targets.forEach(target => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(content, 'text/html');
+                    const swapElement = doc.body.firstElementChild;
+
+                    if (swapElement) {
+                        const swapStrategy = swapElement.getAttribute('hz-swap-oob') || 'innerHTML';
+                        const swapConfig = { strategy: swapStrategy };
+
+                        swapElement.removeAttribute('hz-swap-oob');
+                        const html = swapElement.outerHTML;
+
+                        updateDOM(selector, html, swapConfig, document.body);
+                    } else {
+                        updateDOM(selector, content, { strategy: 'innerHTML' }, document.body);
+                    }
+                });
+            } else if (typeof content === 'object' && content.template) {
+                const template = { type: 'selector', value: content.template };
+                const html = renderTemplate(template, content.data || content);
+                const swapConfig = { strategy: content.swap || 'innerHTML' };
+
+                updateDOM(selector, html, swapConfig, document.body);
+            }
+        }
+    }
 }/*
  * dom.js - High-performance DOM manipulation for htmz
  * Copyright (C) 2025 William Theesfeld <william@theesfeld.net>
@@ -735,6 +803,10 @@ function precompileTemplate(templateStr) {
 const SWAP_STRATEGIES = {
     innerHTML: swapInnerHTML,
     outerHTML: swapOuterHTML,
+    beforebegin: swapBefore,
+    afterbegin: swapPrepend,
+    beforeend: swapAppend,
+    afterend: swapAfter,
     append: swapAppend,
     prepend: swapPrepend,
     before: swapBefore,
@@ -749,7 +821,7 @@ function updateDOM(targetSelector, html, swapConfig, sourceElement) {
 
     if (targets.length === 0) {
         console.warn(`htmz: Target '${targetSelector}' not found`);
-        return false;
+        return null;
     }
 
     const strategy = swapConfig.strategy || 'innerHTML';
@@ -757,8 +829,10 @@ function updateDOM(targetSelector, html, swapConfig, sourceElement) {
 
     if (!swapFn) {
         console.warn(`htmz: Unknown swap strategy '${strategy}'`);
-        return false;
+        return null;
     }
+
+    let lastTarget = null;
 
     targets.forEach(target => {
         const options = swapConfig.options || {};
@@ -776,9 +850,11 @@ function updateDOM(targetSelector, html, swapConfig, sourceElement) {
         if (options.scroll) {
             scrollToElement(target, options.scroll);
         }
+
+        lastTarget = target;
     });
 
-    return true;
+    return lastTarget;
 }
 
 function findTargets(selector, sourceElement) {
@@ -1195,6 +1271,7 @@ function executeRequest(element, config, triggerEvent) {
     }
 
     showIndicator(element, config);
+    addRequestClass(element);
 
     const controller = createAbortController();
     markRequestStart(element, controller);
@@ -1219,11 +1296,31 @@ function executeRequest(element, config, triggerEvent) {
         .then(response => {
             markRequestEnd(element);
             hideIndicator(element, config);
+            removeRequestClass(element);
+
+            triggerCustomEvent(element, 'hz:beforeSwap', {
+                response,
+                config,
+                triggerEvent
+            });
 
             if (config.template) {
                 const html = renderTemplate(config.template, response);
                 const target = config.target || 'this';
-                updateDOM(target, html, config.swap, element);
+                const swappedElement = updateDOM(target, html, config.swap, element);
+
+                triggerCustomEvent(element, 'hz:afterSwap', {
+                    response,
+                    config,
+                    triggerEvent,
+                    target: swappedElement
+                });
+
+                triggerCustomEvent(swappedElement || element, 'hz:load', {
+                    response,
+                    config,
+                    triggerEvent
+                });
             }
 
             triggerCustomEvent(element, 'hz:afterRequest', {
@@ -1235,8 +1332,12 @@ function executeRequest(element, config, triggerEvent) {
         .catch(error => {
             markRequestEnd(element);
             hideIndicator(element, config);
+            removeRequestClass(element);
 
-            triggerCustomEvent(element, 'hz:requestError', {
+            const isNetworkError = error instanceof TypeError || error.name === 'NetworkError';
+            const eventName = isNetworkError ? 'hz:sendError' : 'hz:requestError';
+
+            triggerCustomEvent(element, eventName, {
                 error,
                 config,
                 triggerEvent
@@ -1310,113 +1411,39 @@ function removeGlobalEventListener(eventName, selector) {
         document.removeEventListener(eventName, handler);
         GLOBAL_LISTENERS.delete(key);
     }
-}/*
- * env.js - Environment variable placeholder detection for htmz
- * Copyright (C) 2025 William Theesfeld <william@theesfeld.net>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- */
-
-"use strict";
-
-function hasEnvPlaceholders(str) {
-    if (typeof str !== 'string') return false;
-    return /\{\{env\.[^}]+\}\}/.test(str);
 }
 
-function extractEnvVarNames(str) {
-    if (typeof str !== 'string') return [];
-
-    const matches = str.match(/\{\{env\.([^}]+)\}\}/g);
-    if (!matches) return [];
-
-    return matches.map(match => {
-        const key = match.replace(/\{\{env\.([^}]+)\}\}/, '$1');
-        return key.trim();
-    });
-}
-
-function hasEnvPlaceholdersInObject(obj) {
-    if (!obj || typeof obj !== 'object') return false;
-
-    return Object.values(obj).some(value => {
-        if (typeof value === 'string') {
-            return hasEnvPlaceholders(value);
-        } else if (typeof value === 'object') {
-            return hasEnvPlaceholdersInObject(value);
-        }
-        return false;
-    });
-}
-
-function showProxyRequiredMessage(element) {
-    console.warn('htmz: Environment variables detected in HTML attributes');
-    console.warn('htmz: Start the proxy server to resolve them securely:');
-    console.warn('htmz: npx htmz proxy');
-
-    // Show user-friendly message in the browser
-    if (element) {
-        element.innerHTML = `
-            <div style="
-                border: 2px solid #f39c12;
-                background: #fef9e7;
-                padding: 1rem;
-                border-radius: 8px;
-                font-family: system-ui, sans-serif;
-                color: #856404;
-                margin: 1rem 0;
-            ">
-                <h3 style="margin: 0 0 0.5rem 0; color: #b8860b;">🔐 htmz Proxy Required</h3>
-                <p style="margin: 0 0 0.5rem 0;">
-                    This element uses environment variables that require the htmz proxy server.
-                </p>
-                <p style="margin: 0; font-family: monospace; font-size: 0.9em;">
-                    <strong>Start the proxy:</strong> <code>npx htmz proxy</code>
-                </p>
-            </div>
-        `;
+function addRequestClass(element) {
+    if (typeof htmz !== 'undefined' && htmz.config.requestClass) {
+        element.classList.add(htmz.config.requestClass);
     }
 }
 
-// For backwards compatibility with existing code
-function processElementEnvVars(element) {
-    // This function now does nothing - the proxy handles everything
-    // But we keep it to avoid breaking existing code
+function removeRequestClass(element) {
+    if (typeof htmz !== 'undefined' && htmz.config.requestClass) {
+        element.classList.remove(htmz.config.requestClass);
+    }
 }
 
-// Dummy functions for backwards compatibility
-function setEnvVar() {
-    console.warn('htmz: Client-side environment variables are no longer supported');
-    console.warn('htmz: Use the proxy server instead: npx htmz proxy');
-    return false;
+function addSwappingClass(element) {
+    if (typeof htmz !== 'undefined' && htmz.config.swappingClass) {
+        element.classList.add(htmz.config.swappingClass);
+    }
 }
 
-function getEnvVar() {
-    console.warn('htmz: Client-side environment variables are no longer supported');
-    console.warn('htmz: Environment variables are resolved server-side by the proxy');
-    return undefined;
+function removeSwappingClass(element) {
+    if (typeof htmz !== 'undefined' && htmz.config.swappingClass) {
+        element.classList.remove(htmz.config.swappingClass);
+    }
 }
 
-function removeEnvVar() {
-    console.warn('htmz: Client-side environment variables are no longer supported');
-    return false;
-}
-
-function listEnvVars() {
-    console.warn('htmz: Client-side environment variables are no longer supported');
-    return [];
-}
-
-function clearEnvVars() {
-    console.warn('htmz: Client-side environment variables are no longer supported');
-}
-
-function configureEnvVars() {
-    console.warn('htmz: Client-side environment variables are no longer supported');
-    console.warn('htmz: Use the proxy server configuration instead: npx htmz proxy');
+function addSettlingClass(element) {
+    if (typeof htmz !== 'undefined' && htmz.config.settlingClass) {
+        element.classList.add(htmz.config.settlingClass);
+        setTimeout(() => {
+            element.classList.remove(htmz.config.settlingClass);
+        }, htmz.config.defaultSettleDelay || 20);
+    }
 }/*
  * htmz.js - High-performance JSON-powered HTML library
  * Copyright (C) 2025 William Theesfeld <william@theesfeld.net>
@@ -1442,7 +1469,18 @@ function configureEnvVars() {
             attributePrefix: 'hz-',
             logRequests: false,
             globalHeaders: {},
-            timeout: 30000
+            timeout: 30000,
+            historyEnabled: false,
+            requestClass: 'hz-request',
+            settlingClass: 'hz-settling',
+            swappingClass: 'hz-swapping',
+            indicatorClass: 'hz-indicator',
+            allowEval: true,
+            withCredentials: false,
+            defaultSwapDelay: 0,
+            defaultSettleDelay: 20,
+            scrollBehavior: 'instant',
+            includeIndicatorStyles: true
         }
     };
 

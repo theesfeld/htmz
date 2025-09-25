@@ -13,6 +13,10 @@
 const SWAP_STRATEGIES = {
     innerHTML: swapInnerHTML,
     outerHTML: swapOuterHTML,
+    beforebegin: swapBefore,
+    afterbegin: swapPrepend,
+    beforeend: swapAppend,
+    afterend: swapAfter,
     append: swapAppend,
     prepend: swapPrepend,
     before: swapBefore,
@@ -27,7 +31,7 @@ function updateDOM(targetSelector, html, swapConfig, sourceElement) {
 
     if (targets.length === 0) {
         console.warn(`htmz: Target '${targetSelector}' not found`);
-        return false;
+        return null;
     }
 
     const strategy = swapConfig.strategy || 'innerHTML';
@@ -35,8 +39,10 @@ function updateDOM(targetSelector, html, swapConfig, sourceElement) {
 
     if (!swapFn) {
         console.warn(`htmz: Unknown swap strategy '${strategy}'`);
-        return false;
+        return null;
     }
+
+    let lastTarget = null;
 
     targets.forEach(target => {
         const options = swapConfig.options || {};
@@ -54,9 +60,11 @@ function updateDOM(targetSelector, html, swapConfig, sourceElement) {
         if (options.scroll) {
             scrollToElement(target, options.scroll);
         }
+
+        lastTarget = target;
     });
 
-    return true;
+    return lastTarget;
 }
 
 function findTargets(selector, sourceElement) {

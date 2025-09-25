@@ -28,30 +28,36 @@ Usage:
 
 Commands:
   dev               Start development server (web + proxy)
-  proxy [options]   Start the htmz proxy server only
+  proxy [options]   Start the htmz proxy server only (Unix socket)
   serve [options]   Start web server only
   init              Initialize htmz in current directory
   help              Show this help message
 
 Development Options:
   --port <number>   Web server port (default: 8000)
-  --proxy-port <n>  Proxy server port (default: 3001)
   --no-open         Don't open browser automatically
+  --env <file>      Environment file path (default: .env)
+
+Proxy Options:
+  --dev             Enable development mode
   --env <file>      Environment file path (default: .env)
 
 Examples:
   htmz dev                      # Start everything (recommended!)
   htmz dev --port 3000          # Custom web server port
-  htmz proxy                    # Start proxy server only
+  htmz proxy                    # Start secure Unix socket proxy
   htmz serve                    # Start web server only
   htmz init                     # Set up htmz in existing project
 
 Security:
-  The proxy server keeps your API keys secure by:
+  The proxy server provides maximum security through:
+  • Unix domain socket (no network exposure)
+  • HMAC-SHA256 request signing
+  • Endpoint whitelisting from .env file
+  • Filesystem permissions (600)
+  • 1MB request size limit
   • Reading .env files server-side only
   • Never exposing secrets to the browser
-  • Using CORS to restrict access to localhost
-  • Resolving {{env.VAR}} placeholders at runtime
 
 Documentation: https://github.com/willtheesfeld/htmz
 `);
@@ -73,15 +79,7 @@ function startProxy() {
     while (i < args.length) {
         const arg = args[i];
 
-        if (arg === '--port' && i + 1 < args.length) {
-            const port = parseInt(args[i + 1]);
-            if (isNaN(port) || port < 1 || port > 65535) {
-                console.error(`Error: Invalid port number '${args[i + 1]}'`);
-                process.exit(1);
-            }
-            process.env.PORT = port.toString();
-            i += 2;
-        } else if (arg === '--env' && i + 1 < args.length) {
+        if (arg === '--env' && i + 1 < args.length) {
             const envFile = args[i + 1];
             if (!fs.existsSync(envFile)) {
                 console.error(`Error: Environment file '${envFile}' not found`);
@@ -99,32 +97,8 @@ function startProxy() {
         }
     }
 
-    // Check if Node.js dependencies are installed
-    const proxyPkg = path.join(__dirname, '..', 'proxy', 'package.json');
-    const nodeModules = path.join(__dirname, '..', 'proxy', 'node_modules');
-
-    if (!fs.existsSync(nodeModules)) {
-        console.log('Installing proxy server dependencies...');
-        console.log('This only needs to be done once.\n');
-
-        const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-        const install = spawn(npm, ['install'], {
-            cwd: path.dirname(proxyPath),
-            stdio: 'inherit'
-        });
-
-        install.on('close', (code) => {
-            if (code !== 0) {
-                console.error('Failed to install dependencies');
-                process.exit(1);
-            }
-
-            // Start the server after successful install
-            startProxyServer(proxyPath, proxyArgs);
-        });
-    } else {
-        startProxyServer(proxyPath, proxyArgs);
-    }
+    // No dependencies needed - start proxy server directly
+    startProxyServer(proxyPath, proxyArgs);
 }
 
 function startProxyServer(proxyPath, proxyArgs) {
@@ -168,13 +142,7 @@ function startDevServers() {
     const portIndex = args.indexOf('--port');
     const webPort = portIndex !== -1 && args[portIndex + 1] ? parseInt(args[portIndex + 1]) : 8000;
 
-    const proxyPortIndex = args.indexOf('--proxy-port');
-    const proxyPort = proxyPortIndex !== -1 && args[proxyPortIndex + 1] ? parseInt(args[proxyPortIndex + 1]) : 3001;
-
     const noOpen = args.includes('--no-open');
-
-    // Set proxy port in environment
-    process.env.PORT = proxyPort.toString();
 
     console.log('🚀 Starting htmz development server...\n');
 
@@ -185,26 +153,8 @@ function startDevServers() {
         process.exit(1);
     }
 
-    // Install dependencies if needed
-    const nodeModules = path.join(path.dirname(proxyPath), 'node_modules');
-    if (!fs.existsSync(nodeModules)) {
-        console.log('Installing proxy dependencies...\n');
-        const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-        const install = spawn(npm, ['install'], {
-            cwd: path.dirname(proxyPath),
-            stdio: 'inherit'
-        });
-
-        install.on('close', (code) => {
-            if (code !== 0) {
-                console.error('Failed to install dependencies');
-                process.exit(1);
-            }
-            startBothServers();
-        });
-    } else {
-        startBothServers();
-    }
+    // No dependencies needed - start servers directly
+    startBothServers();
 
     function startBothServers() {
         // Start proxy server
@@ -254,24 +204,104 @@ function startDevServers() {
 function initProject() {
     console.log('🎯 Initializing htmz project...\n');
 
-    // Create .env.example if it doesn't exist
+    // Create .gitignore to protect .env files
+    if (!fs.existsSync('.gitignore')) {
+        const gitignoreContent = `# htmz Security - NEVER commit these files
+.env
+.env.local
+.env.production
+.htmz-secret
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Logs
+logs/
+*.log
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# nyc test coverage
+.nyc_output/
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db`;
+
+        fs.writeFileSync('.gitignore', gitignoreContent);
+        console.log('✅ Created .gitignore (protects .env files)');
+    }
+
+    // Create comprehensive .env.example
     const envExample = `.env.example`;
     if (!fs.existsSync(envExample)) {
         const envContent = `# htmz Environment Variables
 # Copy this file to .env and add your actual values
+# NEVER commit .env to git - it contains your API keys!
 
-# API Configuration
+# GitHub API (for examples)
 GITHUB_API=https://api.github.com
-GITHUB_TOKEN=your_github_token_here
+GITHUB_TOKEN=your_personal_access_token_here
 DEFAULT_USER=octocat
 
-# Other APIs
+# Your APIs
 API_BASE=https://your-api.com/api/v1
+API_TOKEN=your_bearer_token_here
 API_KEY=your_api_key_here
+
+# Third-party APIs
+STRIPE_API=https://api.stripe.com/v1
+STRIPE_KEY=sk_test_your_stripe_key_here
+
+WEATHER_API=https://api.openweathermap.org/data/2.5
+WEATHER_KEY=your_openweather_key_here
 
 # Configuration
 NODE_ENV=development
-DEBUG=true`;
+DEBUG=true
+
+# Optional: Explicit endpoint whitelist
+# ALLOWED_ENDPOINTS=https://api.github.com,https://api.stripe.com`;
 
         fs.writeFileSync(envExample, envContent);
         console.log('✅ Created .env.example');
@@ -282,58 +312,173 @@ DEBUG=true`;
         const packageJson = {
             name: path.basename(process.cwd()),
             version: '1.0.0',
+            description: 'htmz project - JSON APIs to HTML with zero JavaScript',
+            main: 'index.html',
             scripts: {
                 dev: 'htmz dev',
                 start: 'htmz serve',
-                proxy: 'htmz proxy'
+                proxy: 'htmz proxy',
+                test: 'node tests/security-test.js'
             },
             dependencies: {
-                htmz: '^1.0.0'
-            }
+                '@htmz/htmz': '^1.0.2'
+            },
+            devDependencies: {},
+            keywords: ['htmz', 'json', 'api', 'html', 'frontend'],
+            author: '',
+            license: 'ISC'
         };
 
         fs.writeFileSync('package.json', JSON.stringify(packageJson, null, 2));
         console.log('✅ Created package.json');
     }
 
-    // Create basic index.html if it doesn't exist
+    // Create comprehensive index.html if it doesn't exist
     if (!fs.existsSync('index.html')) {
         const indexHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>htmz Project</title>
+    <title>htmz Project 🚀</title>
     <script src="https://unpkg.com/@htmz/htmz@latest/dist/htmz.min.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 2rem; line-height: 1.6; }
+        .section { margin: 2rem 0; padding: 1rem; border-left: 4px solid #007acc; background: #f8f9fa; }
+        .example { margin: 1rem 0; padding: 1rem; border: 1px solid #ddd; border-radius: 8px; }
+        button { padding: 0.5rem 1rem; margin: 0.5rem; background: #007acc; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #005fa3; }
+        .result { margin: 1rem 0; padding: 1rem; border-radius: 8px; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .secure { border-left: 4px solid #28a745; }
+        .warning { border-left: 4px solid #ffc107; background: #fff3cd; }
+        input { padding: 0.5rem; margin: 0.5rem; border: 1px solid #ddd; border-radius: 4px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 1rem 0; }
+        .card { padding: 1rem; border: 1px solid #ddd; border-radius: 8px; background: white; }
+    </style>
 </head>
 <body>
-    <h1>🚀 htmz Project</h1>
-    <p>Your htmz project is ready!</p>
+    <header>
+        <h1>🚀 Welcome to htmz!</h1>
+        <p><strong>Transform JSON APIs into dynamic HTML with zero JavaScript coding.</strong></p>
+        <p>🔐 <em>Your API keys are secure server-side only - never exposed to browsers!</em></p>
+    </header>
 
-    <!-- Example: Public API (no proxy needed) -->
-    <button hz-get="https://api.github.com/users/octocat"
-            hz-template="#user-template"
-            hz-target="#result">
-        Load Public Data
-    </button>
+    <div class="section secure">
+        <h2>🔐 Secure API Calls (Recommended)</h2>
+        <p>These examples use environment variables that are processed server-side only:</p>
 
-    <!-- Example: With environment variables (requires proxy) -->
-    <button hz-get="{{env.GITHUB_API}}/users/{{env.DEFAULT_USER}}"
-            hz-headers='{"User-Agent": "htmz-app"}'
-            hz-template="#user-template"
-            hz-target="#result">
-        Load with Environment Variables
-    </button>
+        <div class="example">
+            <h3>GitHub Profile (with Authentication)</h3>
+            <button hz-get="{{env.GITHUB_API}}/users/{{env.DEFAULT_USER}}"
+                    hz-headers='{"Authorization": "Bearer {{env.GITHUB_TOKEN}}", "User-Agent": "htmz-app"}'
+                    hz-template="#user-template"
+                    hz-target="#secure-result">
+                Load My GitHub Profile (Secure)
+            </button>
+            <div id="secure-result"></div>
+        </div>
 
-    <div id="result"></div>
+        <div class="example">
+            <h3>API Dashboard Stats</h3>
+            <div hz-get="{{env.API_BASE}}/dashboard/stats"
+                 hz-headers='{"Authorization": "Bearer {{env.API_TOKEN}}"}'
+                 hz-template="#stats-template"
+                 hz-trigger="load"
+                 hz-target="#stats-result">
+            </div>
+            <div id="stats-result"></div>
+        </div>
+    </div>
 
+    <div class="section">
+        <h2>🌐 Public API Examples</h2>
+        <p>These work without authentication (no API keys needed):</p>
+
+        <div class="example">
+            <h3>Public GitHub User</h3>
+            <button hz-get="https://api.github.com/users/octocat"
+                    hz-template="#user-template"
+                    hz-target="#public-result">
+                Load Public Profile
+            </button>
+            <div id="public-result"></div>
+        </div>
+
+        <div class="example">
+            <h3>Live Search</h3>
+            <input type="text"
+                   placeholder="Search GitHub users..."
+                   hz-get="https://api.github.com/search/users"
+                   hz-template="#search-template"
+                   hz-target="#search-result"
+                   hz-trigger="input changed delay:500ms">
+            <div id="search-result"></div>
+        </div>
+    </div>
+
+    <div class="section warning">
+        <h2>⚠️  Setup Required</h2>
+        <p><strong>To use secure API calls with authentication:</strong></p>
+        <ol>
+            <li>Copy <code>.env.example</code> to <code>.env</code></li>
+            <li>Add your real API keys to <code>.env</code></li>
+            <li>Start the proxy: <code>npm run dev</code></li>
+        </ol>
+        <p><em>Your .env file is protected by .gitignore and never committed to git.</em></p>
+    </div>
+
+    <!-- Templates -->
     <template id="user-template">
-        <div style="border: 1px solid #ddd; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
-            <h3>{{name}} (@{{login}})</h3>
-            <p>{{bio}}</p>
-            <p>📍 {{location}} • 👥 {{followers}} followers</p>
+        <div class="result card">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <img src="{{avatar_url}}" width="60" style="border-radius: 50%;">
+                <div>
+                    <h3 style="margin: 0;">{{name}} (@{{login}})</h3>
+                    <p style="margin: 0.5rem 0;">{{bio}}</p>
+                    <p style="margin: 0; color: #666;">
+                        📍 {{location}} • 👥 {{followers}} followers • 📦 {{public_repos}} repos
+                    </p>
+                </div>
+            </div>
         </div>
     </template>
+
+    <template id="search-template">
+        <div class="grid">
+            {{#items}}
+            <div class="card">
+                <img src="{{avatar_url}}" width="40" style="border-radius: 50%; float: left; margin-right: 0.5rem;">
+                <strong>{{login}}</strong>
+                <br><small>{{type}}</small>
+            </div>
+            {{/items}}
+        </div>
+    </template>
+
+    <template id="stats-template">
+        <div class="result">
+            <h3>📊 Dashboard Stats</h3>
+            <div class="grid">
+                <div class="card">
+                    <h4>{{users.total}}</h4>
+                    <p>Total Users</p>
+                </div>
+                <div class="card">
+                    <h4>\${{revenue.total}}</h4>
+                    <p>Revenue</p>
+                </div>
+                <div class="card">
+                    <h4>{{growth.percentage}}%</h4>
+                    <p>Growth</p>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <footer style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid #ddd; color: #666;">
+        <p>🔐 <strong>htmz Security:</strong> Unix socket + HMAC signing + endpoint whitelisting</p>
+        <p>📚 Learn more: <a href="https://github.com/willtheesfeld/htmz">htmz Documentation</a></p>
+    </footer>
 </body>
 </html>`;
 

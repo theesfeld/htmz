@@ -23,7 +23,18 @@
             attributePrefix: 'hz-',
             logRequests: false,
             globalHeaders: {},
-            timeout: 30000
+            timeout: 30000,
+            historyEnabled: false,
+            requestClass: 'hz-request',
+            settlingClass: 'hz-settling',
+            swappingClass: 'hz-swapping',
+            indicatorClass: 'hz-indicator',
+            allowEval: true,
+            withCredentials: false,
+            defaultSwapDelay: 0,
+            defaultSettleDelay: 20,
+            scrollBehavior: 'instant',
+            includeIndicatorStyles: true
         }
     };
 
@@ -63,7 +74,7 @@
     }
 
     function setupMutationObserver() {
-        if (!window.MutationObserver) return;
+        if (!window.MutationObserver || !document.body) return;
 
         const observer = new MutationObserver((mutations) => {
             let needsInit = false;

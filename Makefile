@@ -13,6 +13,7 @@ SOURCES = $(SRC_DIR)/utils.js \
           $(SRC_DIR)/template.js \
           $(SRC_DIR)/dom.js \
           $(SRC_DIR)/event.js \
+          $(SRC_DIR)/env.js \
           $(SRC_DIR)/htmz.js
 
 # Build targets
@@ -36,12 +37,11 @@ $(DIST_DIR):
 	mkdir -p $(DIST_DIR)
 
 dev: build
-	python3 -m http.server 8000 --directory $(EXAMPLE_DIR) &
-	@echo "Development server started at http://localhost:8000"
+	./bin/htmz dev
 
 test: build
-	@echo "Running tests..."
-	# Add test runner here when tests are implemented
+	@echo "Running htmz security test suite..."
+	node tests/security-test.js
 
 clean:
 	rm -rf $(DIST_DIR)
