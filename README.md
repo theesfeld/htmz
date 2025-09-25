@@ -2,9 +2,9 @@
 
 > **Transform any JSON API into dynamic HTML with zero JavaScript coding**
 
-[![Version](https://img.shields.io/badge/version-1.0.2-blue.svg)](https://github.com/willtheesfeld/htmz/releases)
+[![Version](https://img.shields.io/badge/version-1.1.6-blue.svg)](https://github.com/willtheesfeld/htmz/releases)
 [![License](https://img.shields.io/badge/license-GPL%20v3%2B-blue.svg)](LICENSE)
-[![Security](https://img.shields.io/badge/security-unix%20socket%20%2B%20hmac-green.svg)](#-ultra-secure-by-design)
+[![Security](https://img.shields.io/badge/security-localhost%20%2B%20hmac-green.svg)](#-ultra-secure-by-design)
 
 **htmz** is a revolutionary JavaScript library that brings JSON API integration directly to HTML using simple declarative attributes. Build modern, data-driven web applications without writing a single line of JavaScript.
 
@@ -16,49 +16,53 @@
 - **⚡ Blazing Fast** - Smart caching and optimized DOM updates
 - **🪶 Zero Dependencies** - Pure Node.js, no external packages
 - **📱 Works Everywhere** - Any browser, any API, any framework
+- **🔧 TOML Configuration** - Structured API endpoint and authentication management
 
-## 🚀 60-Second Setup
+## 🚀 Quick Start
 
-### 1. Install
+### Option 1: Create New Project (Recommended)
 ```bash
-npm install @htmz/htmz
+npm create @htmz/htmz-app my-app
+cd my-app
+npm run dev
 ```
 
-### 2. Initialize
+### Option 2: Add to Existing Project
 ```bash
+npm install @htmz/htmz
 npx htmz init
 ```
 
-### 3. Add your API keys to `.env`
-```bash
-# .env (never committed to git, server-side only)
-GITHUB_API=https://api.github.com
-GITHUB_TOKEN=your_actual_token_here
-WEATHER_API=https://api.openweathermap.org
-WEATHER_KEY=your_weather_key_here
+### 3. Configure Your APIs
+Edit `proxy/htmz.toml` to add your API endpoints:
+```toml
+[apis.github]
+name = "GitHub API"
+endpoint = "https://api.github.com"
+auth_type = "bearer"
+token = "your_github_token_here"
+
+[apis.weather]
+name = "Weather API"
+endpoint = "https://api.openweathermap.org"
+auth_type = "api_key"
+key_param = "appid"
+key = "your_weather_key_here"
 ```
 
-### 4. Start developing
-```bash
-npm run dev
-# 🚀 Web server: http://localhost:8000
-# 🔐 Secure proxy: http://127.0.0.1:3002 (localhost-only)
-```
-
-### 5. Build your app with HTML
+### 4. Start Building
 ```html
 <!DOCTYPE html>
 <html>
 <head>
-    <script src="https://unpkg.com/@htmz/htmz@latest/dist/htmz.min.js"></script>
+    <script src="https://unpkg.com/@htmz/htmz@1.1.6/dist/htmz.min.js"></script>
 </head>
 <body>
-    <!-- Secure API call using environment variables -->
-    <button hz-get="{{env.GITHUB_API}}/users/{{env.DEFAULT_USER}}"
-            hz-headers='{"Authorization": "Bearer {{env.GITHUB_TOKEN}}"}'
+    <!-- Secure API call - credentials handled by TOML config -->
+    <button hz-get="{{GITHUB_API}}/users/octocat"
             hz-template="#user-template"
             hz-target="#result">
-        Load My GitHub Profile
+        Load GitHub Profile
     </button>
 
     <div id="result"></div>
@@ -75,124 +79,213 @@ npm run dev
 </html>
 ```
 
-**🎉 That's it!** Your API keys stay secure server-side, and your HTML becomes dynamic with zero JavaScript.
+**🎉 That's it!** Your API keys stay secure in the TOML config, never exposed to browsers.
 
 ## 🔐 Ultra-Secure By Design
 
-**Your API keys are NEVER exposed to browsers or networks:**
+**Your API keys are NEVER exposed to browsers:**
 
 - **Localhost-Only Binding** - Proxy only accepts connections from 127.0.0.1
 - **HMAC-SHA256 Signing** - Every request cryptographically verified
-- **Endpoint Whitelisting** - Only pre-approved APIs allowed
-- **Server-Side Only** - `.env` files never leave your server
-- **No External Access** - Cannot be reached from other machines
+- **TOML-Based Configuration** - Structured endpoint whitelisting
+- **Per-Endpoint Authentication** - Bearer tokens, API keys, Basic auth
+- **Server-Side Only** - Credentials never leave your machine
+- **Zero Network Exposure** - Cannot be reached from external networks
 
 ```bash
 # This is impossible - your keys are safe
-curl http://localhost:3001/.env     # ❌ 404 Not Found
-curl http://your-site.com/.env      # ❌ 404 Not Found
-curl http://192.168.1.100:3001/     # ❌ Connection refused
+curl http://localhost:3001/htmz.toml     # ❌ 404 Not Found
+curl http://your-site.com/.env           # ❌ 404 Not Found
+curl http://192.168.1.100:3001/          # ❌ Connection refused
 ```
 
 **🛡️ Zero attack surface. Maximum security.**
 
 ## 📖 Core Attributes
 
-### HTTP Methods
-```html
-<button hz-get="/api/users">Get Users</button>
-<form hz-post="/api/users">Create User</form>
-<button hz-put="/api/users/1">Update User</button>
-<button hz-delete="/api/users/1">Delete User</button>
+Transform any element into a dynamic API client:
+
+| Attribute | Purpose | Example |
+|-----------|---------|---------|
+| `hz-get` | GET request | `hz-get="{{API_BASE}}/users"` |
+| `hz-post` | POST request | `hz-post="{{API_BASE}}/users"` |
+| `hz-put` | PUT request | `hz-put="{{API_BASE}}/users/123"` |
+| `hz-delete` | DELETE request | `hz-delete="{{API_BASE}}/users/123"` |
+| `hz-headers` | HTTP headers | `hz-headers='{"Content-Type": "application/json"}'` |
+| `hz-body` | Request body | `hz-body='{"name": "John"}'` |
+| `hz-template` | Template selector | `hz-template="#user-template"` |
+| `hz-target` | Result destination | `hz-target="#results"` |
+| `hz-trigger` | Event trigger | `hz-trigger="click,change"` |
+
+## 🔧 TOML Configuration
+
+Configure all your APIs in one place with `proxy/htmz.toml`:
+
+### Basic Structure
+```toml
+[proxy]
+port = 3001
+host = "127.0.0.1"
+
+[apis.myapi]
+name = "My API"
+endpoint = "https://api.example.com"
+auth_type = "bearer"
+token = "your_token_here"
+
+[template_vars]
+API_BASE = "https://api.example.com"
+DEFAULT_USER = "demo"
 ```
 
-### Templating & Rendering
-```html
-<div hz-get="/api/user"
-     hz-template="#user-card"
-     hz-target="#content"
-     hz-swap="innerHTML">
-</div>
+### Authentication Types
+
+**No Authentication:**
+```toml
+[apis.public]
+name = "Public API"
+endpoint = "https://jsonplaceholder.typicode.com"
+auth_type = "none"
 ```
 
-### Event Triggers
-```html
-<!-- On click (default) -->
-<button hz-get="/api/data">Click me</button>
-
-<!-- On page load -->
-<div hz-get="/api/stats" hz-trigger="load"></div>
-
-<!-- On input with delay -->
-<input hz-get="/api/search"
-       hz-trigger="input changed delay:300ms"
-       hz-target="#results">
+**Bearer Token:**
+```toml
+[apis.github]
+name = "GitHub API"
+endpoint = "https://api.github.com"
+auth_type = "bearer"
+token = "ghp_your_token_here"
 ```
 
-## 🎨 Template Magic
+**API Key (URL Parameter):**
+```toml
+[apis.weather]
+name = "Weather API"
+endpoint = "https://api.openweathermap.org"
+auth_type = "api_key"
+key_param = "appid"
+key = "your_api_key_here"
+```
 
-### Simple Variables
+**API Key (Header):**
+```toml
+[apis.news]
+name = "News API"
+endpoint = "https://newsapi.org"
+auth_type = "api_header"
+header_name = "X-API-Key"
+key = "your_news_api_key"
+```
+
+**Basic Auth:**
+```toml
+[apis.private]
+name = "Private API"
+endpoint = "https://private-api.com"
+auth_type = "basic"
+username = "admin"
+password = "secret"
+```
+
+## 🚀 Development Commands
+
+### Main Library
+```bash
+npm install @htmz/htmz     # Install library
+htmz dev                   # Start dev server (web + proxy)
+htmz proxy                 # Start proxy server only
+htmz serve                 # Start web server only
+htmz init                  # Initialize existing project
+```
+
+### Project Scaffolding
+```bash
+npm create @htmz/htmz-app my-app    # Create new project
+# or
+npx @htmz/create-htmz-app my-app    # Alternative syntax
+```
+
+### Building
+```bash
+make build                 # Build dist files
+make clean                 # Clean build artifacts
+make dev                   # Build and start dev server
+make watch                 # Auto-rebuild on changes
+make test                  # Run security tests
+```
+
+## 📦 Template System
+
+Powerful templating with variables, conditionals, and loops:
+
+### Variables
 ```html
-<template id="user">
+<template id="user-template">
     <h1>{{name}}</h1>
-    <p>Email: {{email}}</p>
-    <p>City: {{address.city}}</p>
+    <p>{{email}}</p>
+    <p>Joined: {{created_at}}</p>
 </template>
 ```
 
 ### Conditionals
 ```html
-<template id="status">
-    {{?active}}
-        <span class="online">User is online</span>
+<template id="user-template">
+    {{?is_premium}}
+        <span class="badge">Premium User</span>
     {{/?}}
-
-    {{?role === 'admin'}}
-        <button>Admin Panel</button>
+    {{?!is_active}}
+        <span class="warning">Account Inactive</span>
     {{/?}}
 </template>
 ```
 
-### Arrays & Loops
+### Loops
 ```html
-<template id="user-list">
-    <h2>{{users.length}} Users</h2>
+<template id="users-template">
     {{#users}}
         <div class="user">
-            <strong>{{name}}</strong> - {{email}}
+            <h3>{{name}}</h3>
+            <p>{{email}}</p>
         </div>
     {{/users}}
 </template>
 ```
 
-## 🔥 Real-World Examples
-
-### Live Search
+### Template Variables
+Use TOML-defined variables in your HTML:
 ```html
-<input placeholder="Search GitHub users..."
-       hz-get="{{env.GITHUB_API}}/search/users"
-       hz-template="#search-results"
-       hz-target="#results"
-       hz-trigger="input changed delay:300ms">
-
-<template id="search-results">
-    {{#items}}
-        <div class="result">
-            <img src="{{avatar_url}}" width="40">
-            <strong>{{login}}</strong>
-        </div>
-    {{/items}}
-</template>
+<button hz-get="{{API_BASE}}/users/{{DEFAULT_USER}}">
+    Load Default User
+</button>
 ```
 
-### Dashboard Stats
+## 🔄 Event Handling
+
+Control when requests trigger:
+
 ```html
-<!-- Auto-loads on page load -->
-<div hz-get="{{env.API_BASE}}/dashboard/stats"
-     hz-headers='{"Authorization": "Bearer {{env.API_TOKEN}}"}'
+<!-- Click (default) -->
+<button hz-get="/api/data">Click Me</button>
+
+<!-- Input with delay -->
+<input hz-get="/api/search"
+       hz-trigger="input changed delay:500ms"
+       hz-target="#results">
+
+<!-- Multiple triggers -->
+<div hz-get="/api/status"
+     hz-trigger="load,focus,every 30s"
+     hz-target="#status">
+```
+
+## 🎯 Advanced Examples
+
+### Real-time Dashboard
+```html
+<div hz-get="{{API_BASE}}/stats"
+     hz-trigger="load,every 5s"
      hz-template="#stats-template"
-     hz-trigger="load"
-     class="dashboard">
+     hz-target="#dashboard">
 </div>
 
 <template id="stats-template">
@@ -205,181 +298,148 @@ curl http://192.168.1.100:3001/     # ❌ Connection refused
             <h3>${{revenue.total}}</h3>
             <p>Revenue</p>
         </div>
-        <div class="stat">
-            <h3>{{growth.percentage}}%</h3>
-            <p>Growth</p>
+    </div>
+</template>
+```
+
+### Search with Live Results
+```html
+<input type="text"
+       placeholder="Search users..."
+       hz-get="{{API_BASE}}/search/users"
+       hz-trigger="input changed delay:300ms"
+       hz-template="#search-results"
+       hz-target="#results">
+
+<div id="results"></div>
+
+<template id="search-results">
+    {{#users}}
+        <div class="user-card">
+            <img src="{{avatar_url}}" width="40">
+            <div>
+                <strong>{{name}}</strong>
+                <p>{{email}}</p>
+            </div>
         </div>
-    </div>
+    {{/users}}
 </template>
 ```
 
-### Todo App
+### Form Submission
 ```html
-<form hz-post="{{env.API_BASE}}/todos"
-      hz-headers='{"Authorization": "Bearer {{env.API_TOKEN}}"}'
-      hz-template="#todo-item"
-      hz-target="#todo-list"
-      hz-swap="prepend">
-    <input name="text" placeholder="What needs to be done?" required>
-    <button type="submit">Add Todo</button>
+<form hz-post="{{API_BASE}}/users"
+      hz-body-from="form"
+      hz-template="#success-template"
+      hz-target="#result">
+    <input name="name" placeholder="Name">
+    <input name="email" placeholder="Email">
+    <button type="submit">Create User</button>
 </form>
+```
 
-<div id="todo-list"></div>
+## 🏗️ Architecture
 
-<template id="todo-item">
-    <div class="todo {{?completed}}completed{{/?}}" data-id="{{id}}">
-        <span>{{text}}</span>
-        <button hz-delete="{{env.API_BASE}}/todos/{{id}}"
-                hz-target="closest .todo"
-                hz-swap="delete"
-                class="delete-btn">×</button>
-    </div>
+### Client-Side (Browser)
+- **htmz.js** - Core library for attribute processing
+- **HMAC signing** - Signs all requests for security
+- **Template engine** - Processes response data
+- **DOM morphing** - Efficient UI updates
+
+### Server-Side (Development)
+- **TOML proxy server** - Handles authentication and secrets
+- **Endpoint whitelisting** - Only configured APIs accessible
+- **Request forwarding** - Proxies to real APIs with credentials
+- **Zero dependencies** - Pure Node.js implementation
+
+## 🚀 Deployment
+
+### Development
+```bash
+htmz dev                   # Local development (ports 8000 + 3001)
+```
+
+### Production
+Deploy your HTML files anywhere. The proxy server is only needed for development when using authenticated APIs.
+
+For production with server-side APIs:
+1. Deploy proxy server to secure environment
+2. Configure firewall to allow only your application
+3. Use environment variables for credentials
+
+## 🔒 Security Features
+
+- **HMAC-SHA256** request signing prevents tampering
+- **Localhost binding** eliminates external network access
+- **Endpoint whitelisting** via TOML configuration
+- **Credential isolation** - API keys never touch browsers
+- **Request size limits** prevent DoS attacks
+- **File permissions** protect configuration files
+
+## 📚 API Reference
+
+### HTML Attributes
+
+**HTTP Methods:**
+- `hz-get="url"` - GET request
+- `hz-post="url"` - POST request
+- `hz-put="url"` - PUT request
+- `hz-delete="url"` - DELETE request
+- `hz-patch="url"` - PATCH request
+
+**Request Configuration:**
+- `hz-headers="json"` - HTTP headers
+- `hz-body="json"` - Request body
+- `hz-body-from="selector"` - Extract body from form/element
+
+**Response Handling:**
+- `hz-template="selector"` - Template to render
+- `hz-target="selector"` - Where to insert result
+- `hz-trigger="events"` - When to make request
+
+**Advanced:**
+- `hz-cache="duration"` - Cache response for duration
+- `hz-retry="count"` - Retry failed requests
+- `hz-timeout="ms"` - Request timeout
+
+### Template Variables
+
+Template variables from TOML `[template_vars]` section:
+```html
+<button hz-get="{{API_BASE}}/users/{{DEFAULT_USER}}">
+```
+
+Response data variables:
+```html
+<template>
+    <h1>{{user.name}}</h1>
+    <p>{{user.email}}</p>
 </template>
 ```
 
-## 🛠 JavaScript API (Optional)
+## 🤝 Contributing
 
-```javascript
-// Manual requests
-htmz.get('/api/users').then(data => console.log(data));
-htmz.post('/api/users', {name: 'John', email: 'john@example.com'});
-
-// Template rendering
-htmz.render('#user-template', userData, '#target');
-
-// DOM updates
-htmz.swap('#target', '<div>New content</div>', 'innerHTML');
-
-// Global configuration
-htmz.configure({
-    defaultSwap: 'innerHTML',
-    globalHeaders: {'X-Requested-With': 'htmz'}
-});
-```
-
-## ⚡ Advanced Features
-
-### Environment Variables
-```html
-<!-- Secure server-side variable replacement -->
-<div hz-get="{{env.API_BASE}}/user/{{env.USER_ID}}"
-     hz-headers='{"Authorization": "Bearer {{env.API_TOKEN}}"}'>
-</div>
-```
-
-### Multiple Swap Strategies
-```html
-<button hz-get="/api/notification"
-        hz-target="#notifications"
-        hz-swap="prepend">New Notification</button>
-
-<button hz-get="/api/user"
-        hz-target="#profile"
-        hz-swap="outerHTML">Reload Profile</button>
-```
-
-### Request Indicators
-```html
-<button hz-get="/api/slow-endpoint"
-        hz-indicator="#loading">
-    Fetch Data
-</button>
-
-<div id="loading" style="display: none;">
-    Loading...
-</div>
-```
-
-## 🚀 Command Line Interface
-
-```bash
-# Start development servers
-htmz dev                 # Web server + secure proxy
-
-# Start components individually
-htmz proxy              # Unix socket proxy only
-htmz serve              # Web server only
-
-# Project setup
-htmz init               # Initialize htmz in existing project
-htmz help               # Show help
-```
-
-## 🔧 Environment Variables
-
-htmz automatically whitelists API endpoints from your `.env` file:
-
-```bash
-# .env
-GITHUB_API=https://api.github.com          # ✅ Whitelisted
-STRIPE_API=https://api.stripe.com         # ✅ Whitelisted
-WEATHER_API=https://api.openweathermap.org # ✅ Whitelisted
-
-# Explicit whitelist (optional)
-ALLOWED_ENDPOINTS=https://api.github.com,https://api.stripe.com
-
-# Your secrets (never exposed)
-GITHUB_TOKEN=ghp_your_token_here
-STRIPE_KEY=sk_test_your_key_here
-```
-
-**🔐 Security guarantee:** These variables are processed server-side only and never sent to browsers.
-
-## 🛡️ Security Best Practices
-
-### ✅ Do This
-```html
-<!-- ✅ Secure: Uses proxy server -->
-<div hz-get="{{env.API_BASE}}/user"
-     hz-headers='{"Authorization": "Bearer {{env.API_TOKEN}}"}'>
-</div>
-```
-
-### ❌ Never Do This
-```html
-<!-- ❌ DANGER: Exposes API key to browser -->
-<div hz-get="https://api.service.com/user"
-     hz-headers='{"Authorization": "Bearer sk_live_secret_key"}'>
-</div>
-```
-
-### 🔐 Why htmz is Secure
-
-1. **Localhost-Only** - Proxy only binds to 127.0.0.1, no external access
-2. **HMAC Signing** - Every request cryptographically verified
-3. **Endpoint Whitelisting** - Only approved APIs allowed
-4. **Server-Side Processing** - Environment variables never leave server
-5. **Zero Dependencies** - No external packages, minimal attack surface
-
-## 🆚 Comparison
-
-| Feature | htmz | htmx | Alpine.js | React |
-|---------|------|------|-----------|-------|
-| **JSON APIs** | ✅ Native | ❌ HTML only | ⚠️ Manual | ⚠️ Manual |
-| **Security** | ✅ Localhost + HMAC | ❌ HTTP only | ❌ Client-side | ❌ Client-side |
-| **Setup** | ✅ 60 seconds | ⚠️ Moderate | ⚠️ Moderate | ❌ Complex |
-| **API Keys** | ✅ Server-side only | ❌ Client-side | ❌ Client-side | ❌ Client-side |
-| **Dependencies** | ✅ Zero | ⚠️ Some | ⚠️ Some | ❌ Many |
-| **Learning Curve** | ✅ HTML only | ✅ HTML only | ⚠️ JS required | ❌ Complex |
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature-name`
+3. Make your changes following GNU coding standards
+4. Run tests: `make test`
+5. Commit with GPL headers: `git commit -m "Add feature"`
+6. Push and create a Pull Request
 
 ## 📄 License
 
-**GPL v3+** - Free and open source forever.
+htmz is licensed under GPL v3+ - see [LICENSE](LICENSE) for details.
 
-## 🐛 Issues & Support
+This ensures the freedom to use, modify, and distribute while keeping derivatives open source.
 
-- **Issues:** [GitHub Issues](https://github.com/willtheesfeld/htmz/issues)
-- **Security:** Report security issues to william@theesfeld.net
-- **Discussions:** [GitHub Discussions](https://github.com/willtheesfeld/htmz/discussions)
+## 🔗 Links
+
+- **Documentation**: [Full docs and examples](docs/)
+- **npm Package**: [@htmz/htmz](https://www.npmjs.com/package/@htmz/htmz)
+- **Scaffolding**: [@htmz/create-htmz-app](https://www.npmjs.com/package/@htmz/create-htmz-app)
+- **GitHub**: [Source code and issues](https://github.com/willtheesfeld/htmz)
+- **Releases**: [Latest versions](https://github.com/willtheesfeld/htmz/releases)
 
 ---
 
-<div align="center">
-
-**⭐ Star us on GitHub if htmz helps you build amazing apps!**
-
-### htmz: Because web development should be simple, secure, and fast.
-
-*Transform JSON APIs into beautiful UIs with zero JavaScript coding.*
-
-</div>
+**🚀 Build the future of web development - one HTML attribute at a time!**
