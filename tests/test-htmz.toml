@@ -1,0 +1,23 @@
+
+[proxy]
+port = 3002
+host = "127.0.0.1"
+
+[apis.github]
+name = "GitHub API"
+endpoint = "https://api.github.com"
+auth_type = "none"
+
+[apis.httpbin]
+name = "HTTPBin"
+endpoint = "https://httpbin.org"
+auth_type = "none"
+
+[apis.jsonplaceholder]
+name = "JSONPlaceholder"
+endpoint = "https://jsonplaceholder.typicode.com"
+auth_type = "none"
+
+[template_vars]
+GITHUB_API = "https://api.github.com"
+HTTPBIN_API = "https://httpbin.org"

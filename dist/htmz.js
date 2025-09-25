@@ -1968,7 +1968,7 @@ function configureEnvVars() {
 
 (function(global) {
 
-    const HTMZ_VERSION = '1.2.0';
+    const HTMZ_VERSION = '1.2.1';
     const INITIALIZED_ATTR = 'data-hz-init';
 
     const htmz = {
