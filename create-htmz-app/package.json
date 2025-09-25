@@ -1,6 +1,6 @@
 {
   "name": "@htmz/create-htmz-app",
-  "version": "1.0.2",
+  "version": "1.1.2",
   "description": "Create htmz apps with zero configuration",
   "main": "index.js",
   "bin": {
