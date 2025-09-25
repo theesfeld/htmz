@@ -1,6 +1,6 @@
 {
   "name": "@htmz/htmz",
-  "version": "1.1.6",
+  "version": "1.1.7",
   "description": "Transform any JSON API into dynamic HTML with zero JavaScript coding. Declarative attributes for AJAX, templating, and DOM updates.",
   "main": "dist/htmz.js",
   "browser": "dist/htmz.min.js",

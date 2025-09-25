@@ -2,7 +2,7 @@
 
 > **Transform any JSON API into dynamic HTML with zero JavaScript coding**
 
-[![Version](https://img.shields.io/badge/version-1.1.6-blue.svg)](https://github.com/willtheesfeld/htmz/releases)
+[![Version](https://img.shields.io/badge/version-1.1.7-blue.svg)](https://www.npmjs.com/package/@htmz/htmz)
 [![License](https://img.shields.io/badge/license-GPL%20v3%2B-blue.svg)](LICENSE)
 [![Security](https://img.shields.io/badge/security-localhost%20%2B%20hmac-green.svg)](#-ultra-secure-by-design)
 
@@ -55,7 +55,7 @@ key = "your_weather_key_here"
 <!DOCTYPE html>
 <html>
 <head>
-    <script src="https://unpkg.com/@htmz/htmz@1.1.6/dist/htmz.min.js"></script>
+    <script src="https://unpkg.com/@htmz/htmz@1.1.7/dist/htmz.min.js"></script>
 </head>
 <body>
     <!-- Secure API call - credentials handled by TOML config -->
@@ -437,8 +437,8 @@ This ensures the freedom to use, modify, and distribute while keeping derivative
 - **Documentation**: [Full docs and examples](docs/)
 - **npm Package**: [@htmz/htmz](https://www.npmjs.com/package/@htmz/htmz)
 - **Scaffolding**: [@htmz/create-htmz-app](https://www.npmjs.com/package/@htmz/create-htmz-app)
-- **GitHub**: [Source code and issues](https://github.com/willtheesfeld/htmz)
-- **Releases**: [Latest versions](https://github.com/willtheesfeld/htmz/releases)
+- **GitHub**: [Source code and issues](https://github.com/theesfeld/htmz)
+- **npm Releases**: [@htmz/htmz versions](https://www.npmjs.com/package/@htmz/htmz?activeTab=versions)
 
 ---
 
