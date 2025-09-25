@@ -1,0 +1,255 @@
+{
+  "proxy": {
+    "version": "2.0.0",
+    "port": 3001,
+    "security": {
+      "hmacEnabled": true,
+      "corsEnabled": false,
+      "rateLimitEnabled": false
+    }
+  },
+  "endpoints": {
+    "github": {
+      "name": "GitHub API",
+      "baseUrl": "https://api.github.com",
+      "authentication": {
+        "type": "none",
+        "headers": {}
+      },
+      "rateLimit": {
+        "requests": 5000,
+        "window": 3600
+      },
+      "variables": {
+        "TEST_USER": "octocat",
+        "GITHUB_API": "https://api.github.com"
+      }
+    },
+    "github_auth": {
+      "name": "GitHub API (Authenticated)",
+      "baseUrl": "https://api.github.com",
+      "authentication": {
+        "type": "bearer",
+        "token": "${GITHUB_TOKEN}"
+      },
+      "rateLimit": {
+        "requests": 5000,
+        "window": 3600
+      },
+      "variables": {
+        "GITHUB_API_AUTH": "https://api.github.com"
+      }
+    },
+    "jsonplaceholder": {
+      "name": "JSONPlaceholder",
+      "baseUrl": "https://jsonplaceholder.typicode.com",
+      "authentication": {
+        "type": "none"
+      },
+      "variables": {
+        "JSONPLACEHOLDER": "https://jsonplaceholder.typicode.com",
+        "DEMO_POST_ID": "1",
+        "DEMO_USER_ID": "2",
+        "DEMO_ALBUM_ID": "3"
+      }
+    },
+    "httpbin": {
+      "name": "HTTPBin Testing",
+      "baseUrl": "https://httpbin.org",
+      "authentication": {
+        "type": "none"
+      },
+      "variables": {
+        "HTTPBIN": "https://httpbin.org",
+        "UUID": "https://httpbin.org/uuid"
+      }
+    },
+    "reqres": {
+      "name": "ReqRes API",
+      "baseUrl": "https://reqres.in",
+      "authentication": {
+        "type": "none"
+      },
+      "variables": {
+        "REQRES": "https://reqres.in"
+      }
+    },
+    "coindesk": {
+      "name": "CoinDesk Bitcoin API",
+      "baseUrl": "https://api.coindesk.com",
+      "authentication": {
+        "type": "none"
+      },
+      "variables": {
+        "COINDESK": "https://api.coindesk.com"
+      }
+    },
+    "jsontest": {
+      "name": "JSON Test API",
+      "baseUrl": "http://echo.jsontest.com",
+      "authentication": {
+        "type": "none"
+      },
+      "variables": {
+        "JSONTEST": "http://echo.jsontest.com"
+      }
+    },
+    "ipify": {
+      "name": "IP Address API",
+      "baseUrl": "https://api.ipify.org",
+      "authentication": {
+        "type": "none"
+      },
+      "variables": {
+        "IPIFY": "https://api.ipify.org"
+      }
+    },
+    "quotable": {
+      "name": "Quotable API",
+      "baseUrl": "https://api.quotable.io",
+      "authentication": {
+        "type": "none"
+      },
+      "variables": {
+        "QUOTE_API": "https://api.quotable.io"
+      }
+    },
+    "advice": {
+      "name": "Advice Slip API",
+      "baseUrl": "https://api.adviceslip.com",
+      "authentication": {
+        "type": "none"
+      },
+      "variables": {
+        "ADVICE_API": "https://api.adviceslip.com"
+      }
+    },
+    "jokes": {
+      "name": "Official Joke API",
+      "baseUrl": "https://official-joke-api.appspot.com",
+      "authentication": {
+        "type": "none"
+      },
+      "variables": {
+        "JOKE_API": "https://official-joke-api.appspot.com"
+      }
+    },
+    "catfacts": {
+      "name": "Cat Facts API",
+      "baseUrl": "https://catfact.ninja",
+      "authentication": {
+        "type": "none"
+      },
+      "variables": {
+        "CAT_FACTS": "https://catfact.ninja"
+      }
+    },
+    "dogapi": {
+      "name": "Dog API",
+      "baseUrl": "https://dog.ceo",
+      "authentication": {
+        "type": "none"
+      },
+      "variables": {
+        "DOG_API": "https://dog.ceo"
+      }
+    },
+    "weather": {
+      "name": "Open-Meteo Weather",
+      "baseUrl": "https://api.open-meteo.com",
+      "authentication": {
+        "type": "none"
+      },
+      "variables": {
+        "WEATHER_TEST": "https://api.open-meteo.com"
+      }
+    },
+    "picsum": {
+      "name": "Lorem Picsum Images",
+      "baseUrl": "https://picsum.photos",
+      "authentication": {
+        "type": "none"
+      },
+      "variables": {
+        "PLACEHOLDER_IMG": "https://picsum.photos"
+      }
+    },
+    "openweather": {
+      "name": "OpenWeatherMap API",
+      "baseUrl": "https://api.openweathermap.org",
+      "authentication": {
+        "type": "api_key",
+        "paramName": "appid",
+        "key": "${OPENWEATHER_API_KEY}"
+      },
+      "rateLimit": {
+        "requests": 1000,
+        "window": 3600
+      },
+      "variables": {
+        "OPENWEATHER_API": "https://api.openweathermap.org"
+      }
+    },
+    "newsapi": {
+      "name": "News API",
+      "baseUrl": "https://newsapi.org",
+      "authentication": {
+        "type": "api_key",
+        "headerName": "X-API-Key",
+        "key": "${NEWS_API_KEY}"
+      },
+      "variables": {
+        "NEWS_API": "https://newsapi.org"
+      }
+    },
+    "stripe": {
+      "name": "Stripe API",
+      "baseUrl": "https://api.stripe.com",
+      "authentication": {
+        "type": "bearer",
+        "token": "${STRIPE_SECRET_KEY}"
+      },
+      "variables": {
+        "STRIPE_API": "https://api.stripe.com"
+      }
+    },
+    "twitter": {
+      "name": "Twitter API v2",
+      "baseUrl": "https://api.twitter.com",
+      "authentication": {
+        "type": "bearer",
+        "token": "${TWITTER_BEARER_TOKEN}"
+      },
+      "variables": {
+        "TWITTER_API": "https://api.twitter.com"
+      }
+    },
+    "spotify": {
+      "name": "Spotify Web API",
+      "baseUrl": "https://api.spotify.com",
+      "authentication": {
+        "type": "oauth2",
+        "clientId": "${SPOTIFY_CLIENT_ID}",
+        "clientSecret": "${SPOTIFY_CLIENT_SECRET}"
+      },
+      "variables": {
+        "SPOTIFY_API": "https://api.spotify.com"
+      }
+    }
+  },
+  "environments": {
+    "development": {
+      "debug": true,
+      "cors": {
+        "enabled": true,
+        "origins": ["http://localhost:3000", "http://127.0.0.1:3000"]
+      }
+    },
+    "production": {
+      "debug": false,
+      "cors": {
+        "enabled": false
+      }
+    }
+  }
+}
